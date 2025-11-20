@@ -324,8 +324,11 @@ int main() {
 
 
 
-	Vector3Int worldSizeInChunks = { 8, 1, 8 };
+	Vector3Int worldSizeInChunks = { 16, 16, 16 };		// LIMITED BY COMPRESSION TO INT IN PACKED CHUNK INDEX! Currently limited by each coordinate having 5 bits, i.e max 32 for each coord.
 	Vector3Int chunkSizeInVoxels = { 32, 32, 32 };
+
+	Vector3Int centreVoxelPositionInWorld = { (worldSizeInChunks.x * chunkSizeInVoxels.x) / 2, (worldSizeInChunks.y * chunkSizeInVoxels.y) / 2, (worldSizeInChunks.z * chunkSizeInVoxels.z) / 2 };
+	cameraTransform.position = { centreVoxelPositionInWorld.x, centreVoxelPositionInWorld.y, centreVoxelPositionInWorld.z };
 
 	unsigned int numVoxelDatasPerBucket = (chunkSizeInVoxels.x / 2) * (chunkSizeInVoxels.y / 2) * (chunkSizeInVoxels.z / 2);
 	unsigned int numBuckets = worldSizeInChunks.x * worldSizeInChunks.y * worldSizeInChunks.z * 6;
@@ -343,7 +346,7 @@ int main() {
 	
 	unsigned int chunksVoxelsDataPoolMetadatasBindingPoint = 3;
 	ChunksVoxelsDataPoolMetadata chunksVoxelsDataPoolMetadatas(worldSizeInChunks, chunksVoxelsDataPoolMetadatasBindingPoint);
-	GenerateChunksAndAddToIndirectRenderCommandVectorOnCPU(worldSizeInChunks, chunkSizeInVoxels, voxelsDataPool, chunksPerFaceIndirectDrawCommands, chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas);
+	GenerateChunksAndAddToIndirectRenderCommandVectorOnCPU(worldSizeInChunks, chunkSizeInVoxels, voxelsDataPool, chunksPerFaceIndirectDrawCommands, chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas, cameraTransform.position);
 	chunksVoxelsDataPoolMetadatas.GPU_UploadChunksVoxelsDataPoolMetadatasToTheGPU();
 	chunksPerFaceIndirectDrawCommands.GPU_InitCommandBuffer();
 
@@ -351,8 +354,6 @@ int main() {
 	// Todo 2 : LODs.
 	// Todo 3 : Block types/ block pallet.
 	// Todo 4 : Binary Meshing.
-
-	//FillDrawCommandsForChunksBasedOnCameraViewDirection(mainCamera.cameraPointingDirection, voxelsDataPool, chunksPerFaceIndirectDrawCommands, chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas);
 
 	std::chrono::time_point<std::chrono::high_resolution_clock> lastFrameEndTime = std::chrono::high_resolution_clock::now();
 	float deltaTime = 0.0f;
@@ -421,27 +422,15 @@ int main() {
 			glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 		}
 
-		//FillDrawCommandsForChunksBasedOnCameraViewDirection(mainCamera.cameraPointingDirection, voxelsDataPool, chunksPerFaceIndirectDrawCommands, chunksVoxelsDataPoolMetadatas);
-
 		// Clear screen
 		glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		// Use Shader Program
-		//glUseProgram(voxelVertexAndFragmentWithCameraWithTexturesPerFaceSSBODataAsTriangleIndirectDrawShaderProgram.shaderProgramID);
-
 
 		// Render World Geometry
-		//int mainCameraViewLoc = glGetUniformLocation(voxelVertexAndFragmentWithCameraWithTexturesPerFaceSSBODataAsTriangleIndirectDrawShaderProgram.shaderProgramID, "view");
-		//Mat4x4 viewMatrix = glm::lookAt(cameraTransform.position, glm::normalize(mainCamera.cameraPointingDirection) + cameraTransform.position, mainCamera.cameraUp);
-		//glUniformMatrix4fv(mainCameraViewLoc, 1, GL_FALSE, glm::value_ptr(viewMatrix));
-		//int mainCameraProjectionLoc = glGetUniformLocation(voxelVertexAndFragmentWithCameraWithTexturesPerFaceSSBODataAsTriangleIndirectDrawShaderProgram.shaderProgramID, "projection");
-		//glUniformMatrix4fv(mainCameraProjectionLoc, 1, GL_FALSE, glm::value_ptr(mainCamera.GetProjectionMatrix()));
-
-
-		//RenderMeshOnGPUWithDrawElementsIndirectCommands(voxelVertexAndFragmentWithCameraWithTexturesPerFaceSSBODataAsTriangleIndirectDrawShaderProgram, modelTransform.GetTransformMatrix(), stickmanTextureIndex, commonChunkMeshOnGPU, chunksPerFaceIndirectDrawCommands, voxelsDataPool.megaVoxelsPerFaceDataBufferObjectID, voxelsDataPool.megaVoxelsPerFaceDataBufferObjectBindingLocation);
-
 		RenderMeshOnGPUWithDrawElementsIndirectCommandsWithComputeShader(voxelVertexAndFragmentWithCameraWithTexturesPerFaceSSBODataAsTriangleIndirectDrawShaderProgram, voxelBackfaceCullingComputeShaderProgram, cameraTransform, mainCamera, modelTransform.GetTransformMatrix(), stickmanTextureIndex, commonChunkMeshOnGPU, chunksPerFaceIndirectDrawCommands, voxelsDataPool, chunksVoxelsDataPoolMetadatas);
+
+
 
 		// Render UI
 		glUseProgram(simpleVertexAndFragmentWithCameraWithTexturesShaderProgram.shaderProgramID);

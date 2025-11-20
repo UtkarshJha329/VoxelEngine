@@ -4,11 +4,14 @@ uniform mat4 model;
 uniform mat4 view;
 uniform mat4 projection;
 
+uniform vec3 cameraWorldVoxelPosition;
+
 layout(binding = 2, std430) readonly buffer VoxelFaceAndPositionData {
     uint voxelFaceAndPositionData[];
 };
 
 out vec2 texCoords;
+out vec4 chunkDebugColour;
 
 
 	// Top face (Y+)
@@ -142,10 +145,68 @@ void main()
 
 	ivec3 chunkPosition = ivec3(chunkXPos, chunkYPos, chunkZPos);
 
+
+
+//	vec3 currentCameraChunkPosition = vec3(int(cameraWorldVoxelPosition.x / (numVoxelsInChunk.x)), 0.0, int(cameraWorldVoxelPosition.z / (numVoxelsInChunk.z)));
+//	currentCameraChunkPosition *= numVoxelsInChunk;
+
+	vec3 worldSizeInChunks = vec3(16, 1, 16);
+	vec3 worldCentrePosition = (worldSizeInChunks * numVoxelsInChunk) * 0.5;
+	vec3 currentCameraChunkPosition = vec3(worldCentrePosition);
+
+	vec3 curChunkCentrePosition = chunkPosition + (numVoxelsInChunk * 0.5);
+
+	float xDist = (currentCameraChunkPosition.x - curChunkCentrePosition.x);
+	float zDist = (currentCameraChunkPosition.z - curChunkCentrePosition.z);
+
+	float xDistSign = sign(xDist);
+	float zDistSign = sign(zDist);
+	
+	xDist = abs(xDist);
+	zDist = abs(zDist);
+
+//	float xScale = 1.0 * xDistSign;
+//	float zScale = 1.0 * zDistSign;
+
+	float xScale = 1.0;
+	float yScale = 1.0;
+	float zScale = 1.0;
+
+
+	if (xDist <= 64.0 && zDist <= 64.0){
+		chunkDebugColour = vec4(1.0);
+	} else if ((xDist > 128.0 && xDist <= 256.0 ) || (zDist > 128.0 && zDist <= 256.0)) {
+		chunkDebugColour = vec4(0.0, 1.0, 0.0, 1.0);
+
+		float scaleMultiplier = 4.0;
+		xScale *= scaleMultiplier;
+		yScale *= scaleMultiplier;
+		zScale *= scaleMultiplier;
+
+	} else if ((xDist > 64.0 && xDist <= 128.0) || (zDist > 64.0 && zDist <= 128.0)) {
+		chunkDebugColour = vec4(1.0, 0.0, 0.0, 1.0);
+
+		float scaleMultiplier = 2.0;
+		xScale *= scaleMultiplier;
+		yScale *= scaleMultiplier;
+		zScale *= scaleMultiplier;
+	}
+
+//	xScale = 1.0;
+//	zScale = 1.0;
+
+
 	uint curFace = currentInstancePosition & 7;
-    vec3 vertexPosition = chunkPosition + voxelLocalPosition + GetCurrentVertexBasedOnFaceIndex(curFace);
+    vec3 vertexPosition = chunkPosition + (voxelLocalPosition) + (GetCurrentVertexBasedOnFaceIndex(curFace) * vec3(xScale, yScale, zScale));
+//	vec3 vertexPosition = chunkPosition + (voxelLocalPosition) + (GetCurrentVertexBasedOnFaceIndex(curFace) * vec3(xScale, 1.0, zScale));
+
+
+
 
 
     gl_Position = projection * view * model * vec4(vertexPosition, 1.0);
     texCoords = GetCurrentTexCoordBasedOnVertexIDAndCurFace(curFace);
+
+
+
 }

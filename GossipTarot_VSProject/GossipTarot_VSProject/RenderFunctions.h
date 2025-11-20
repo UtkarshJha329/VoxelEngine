@@ -112,7 +112,7 @@ void RenderMeshOnGPUWithDrawElementsIndirectCommandsWithComputeShader(const Shad
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, chunksPerFaceIndirectDrawCommands.gpu_drawElementsIndirectCommandsDrawCountBufferBindingPoint, chunksPerFaceIndirectDrawCommands.gpu_drawElementsIndirectCommandsDrawCountBufferID);
 
 
-	glDispatchCompute(1, 1, 1);
+	glDispatchCompute(16, 1, 1);
 
 	glMemoryBarrier(GL_COMMAND_BARRIER_BIT | GL_SHADER_STORAGE_BARRIER_BIT);
 
@@ -125,6 +125,8 @@ void RenderMeshOnGPUWithDrawElementsIndirectCommandsWithComputeShader(const Shad
 	int mainCameraProjectionLoc = glGetUniformLocation(shaderForRendering.shaderProgramID, "projection");
 	glUniformMatrix4fv(mainCameraProjectionLoc, 1, GL_FALSE, glm::value_ptr(mainCamera.GetProjectionMatrix()));
 
+	int cameraWorldVoxelPositionLoc = glGetUniformLocation(shaderForRendering.shaderProgramID, "cameraWorldVoxelPosition");
+	glUniform3fv(cameraWorldVoxelPositionLoc, 1, glm::value_ptr(cameraTransform.position));
 
 	int modelLoc = glGetUniformLocation(shaderForRendering.shaderProgramID, "model");
 	glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(globalTransformMatrix));
