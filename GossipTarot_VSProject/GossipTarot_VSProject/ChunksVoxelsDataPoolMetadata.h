@@ -6,8 +6,7 @@ struct FaceVoxelsDataPoolMetadata {
 
 public:
 
-	unsigned int voxelDataBucketIndex = 0;
-	unsigned int voxelDataBucketOffsetIntoMegaArray = 0;
+	unsigned int voxelDataBucketOffsetIntoMegaArrayIndex = 0;
 	unsigned int numVoxelDataInBucket = 0;
 };
 
@@ -71,4 +70,9 @@ public:
 	void GPU_UploadChunksVoxelsDataPoolMetadatasToTheGPU() {
 		memcpy(gpu_chunksVoxelsDataPoolMetadatasPointer, chunksVoxelsDataPoolMetadatas.data(), sizeOfChunksVoxelsDataPoolMetadatasInBytes);
 	}
+
+	void GPU_UploadChunkVoxelsDataPoolMetadatasToTheGPU(unsigned int chunkVoxelDataPoolMetadatasIndex) {
+		memcpy(gpu_chunksVoxelsDataPoolMetadatasPointer + chunkVoxelDataPoolMetadatasIndex, &chunksVoxelsDataPoolMetadatas[chunkVoxelDataPoolMetadatasIndex], sizeof(ChunkVoxelsDataPoolMetadata));
+	}
+
 };

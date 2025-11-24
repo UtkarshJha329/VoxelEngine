@@ -100,36 +100,49 @@ void RenderMeshOnGPUWithDrawElementsIndirectCommands(const ShaderProgram& shader
 	);
 }
 
-void RenderMeshOnGPUWithDrawElementsIndirectCommandsWithComputeShader(const ShaderProgram& shaderForRendering, const ShaderProgram& computeShader, const Transform& cameraTransform, Camera& mainCamera, const Mat4x4& globalTransformMatrix, const int& textureIndex, const MeshOnGPU& meshOnGPU, const ChunksPerFaceIndirectDrawCommands& chunksPerFaceIndirectDrawCommands, const VoxelsDataPool& voxelsDataPool, const ChunksVoxelsDataPoolMetadata& chunksVoxelsDataPoolMetadata) {
+void RenderMeshOnGPUWithDrawElementsIndirectCommandsWithComputeShader(const ShaderProgram& shaderForRendering, const ShaderProgram& computeShader, const Transform& cameraTransform, Camera& mainCamera, const Mat4x4& globalTransformMatrix, const int& textureIndex, const Vector3& worldSizeInChunks, const MeshOnGPU& meshOnGPU, const ChunksPerFaceIndirectDrawCommands& chunksPerFaceIndirectDrawCommands, const VoxelsDataPool& voxelsDataPool, const ChunksVoxelsDataPoolMetadata& chunksVoxelsDataPoolMetadata) {
 
 	glUseProgram(computeShader.shaderProgramID);
 
-	int mainCameraPointingDirectionLoc = glGetUniformLocation(computeShader.shaderProgramID, "cameraPointingDirectionNormalised");
-	glUniform3fv(mainCameraPointingDirectionLoc, 1, glm::value_ptr(mainCamera.cameraPointingDirection));
+	{
+		int mainCameraPointingDirectionLoc = glGetUniformLocation(computeShader.shaderProgramID, "cameraPointingDirectionNormalised");
+		glUniform3fv(mainCameraPointingDirectionLoc, 1, glm::value_ptr(mainCamera.cameraPointingDirection));
+
+		int worldSizeInChunksLoc = glGetUniformLocation(computeShader.shaderProgramID, "worldSizeInChunks");
+		glUniform3fv(worldSizeInChunksLoc, 1, glm::value_ptr(worldSizeInChunks));
+	}
 
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, chunksVoxelsDataPoolMetadata.gpu_chunksVoxelsDataPoolMetadatasBindingPoint, chunksVoxelsDataPoolMetadata.gpu_chunksVoxelsDataPoolMetadatasBufferID);
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, chunksPerFaceIndirectDrawCommands.gpu_drawElementsIndirectCommandsBufferBindingPoint, chunksPerFaceIndirectDrawCommands.gpu_drawElementsIndirectCommandsBufferID);
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, chunksPerFaceIndirectDrawCommands.gpu_drawElementsIndirectCommandsDrawCountBufferBindingPoint, chunksPerFaceIndirectDrawCommands.gpu_drawElementsIndirectCommandsDrawCountBufferID);
 
 
-	glDispatchCompute(16, 1, 1);
+	glDispatchCompute(128, 1, 1);
 
 	glMemoryBarrier(GL_COMMAND_BARRIER_BIT | GL_SHADER_STORAGE_BARRIER_BIT);
 
 	// Render World Geometry
 	glUseProgram(shaderForRendering.shaderProgramID);
 
-	int mainCameraViewLoc = glGetUniformLocation(shaderForRendering.shaderProgramID, "view");
-	Mat4x4 viewMatrix = glm::lookAt(cameraTransform.position, glm::normalize(mainCamera.cameraPointingDirection) + cameraTransform.position, mainCamera.cameraUp);
-	glUniformMatrix4fv(mainCameraViewLoc, 1, GL_FALSE, glm::value_ptr(viewMatrix));
-	int mainCameraProjectionLoc = glGetUniformLocation(shaderForRendering.shaderProgramID, "projection");
-	glUniformMatrix4fv(mainCameraProjectionLoc, 1, GL_FALSE, glm::value_ptr(mainCamera.GetProjectionMatrix()));
 
-	int cameraWorldVoxelPositionLoc = glGetUniformLocation(shaderForRendering.shaderProgramID, "cameraWorldVoxelPosition");
-	glUniform3fv(cameraWorldVoxelPositionLoc, 1, glm::value_ptr(cameraTransform.position));
+	{
+		int mainCameraViewLoc = glGetUniformLocation(shaderForRendering.shaderProgramID, "view");		
+		Mat4x4 viewMatrix = glm::lookAt(cameraTransform.position, glm::normalize(mainCamera.cameraPointingDirection) + cameraTransform.position, mainCamera.cameraUp);
+		glUniformMatrix4fv(mainCameraViewLoc, 1, GL_FALSE, glm::value_ptr(viewMatrix));
+	
+		int mainCameraProjectionLoc = glGetUniformLocation(shaderForRendering.shaderProgramID, "projection");
+		glUniformMatrix4fv(mainCameraProjectionLoc, 1, GL_FALSE, glm::value_ptr(mainCamera.GetProjectionMatrix()));
 
-	int modelLoc = glGetUniformLocation(shaderForRendering.shaderProgramID, "model");
-	glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(globalTransformMatrix));
+		int cameraWorldVoxelPositionLoc = glGetUniformLocation(shaderForRendering.shaderProgramID, "cameraWorldVoxelPosition");
+		glUniform3fv(cameraWorldVoxelPositionLoc, 1, glm::value_ptr(cameraTransform.position));
+
+		int worldSizeInChunksLoc = glGetUniformLocation(shaderForRendering.shaderProgramID, "worldSizeInChunks");
+		glUniform3fv(worldSizeInChunksLoc, 1, glm::value_ptr(worldSizeInChunks));
+
+		int modelLoc = glGetUniformLocation(shaderForRendering.shaderProgramID, "model");
+		glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(globalTransformMatrix));
+
+	}
 
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, voxelsDataPool.megaVoxelsPerFaceDataBufferObjectBindingLocation, voxelsDataPool.megaVoxelsPerFaceDataBufferObjectID);
 

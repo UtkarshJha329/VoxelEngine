@@ -1,12 +1,11 @@
 
 #version 460 core
 
-layout (local_size_x = 256) in;
+layout (local_size_x = 512) in;
 
 struct FaceVoxelsDataPoolMetadata {
 
-	uint voxelDataBucketIndex;
-	uint voxelDataBucketOffsetIntoMegaArray;
+	uint voxelDataBucketOffsetIntoMegaArrayIndex;
 	uint numVoxelDataInBucket;
 };
 
@@ -44,6 +43,7 @@ layout(std430, binding = 5) buffer MultiDrawIndirectDrawCount {
 };
 
 uniform vec3 cameraPointingDirectionNormalised;
+uniform vec3 worldSizeInChunks;
 
 void WriteFaceDataToDrawCommand(in uint packedChunkIndex, inout FaceVoxelsDataPoolMetadata faceVoxelsDataPoolMetadata){
 
@@ -52,7 +52,7 @@ void WriteFaceDataToDrawCommand(in uint packedChunkIndex, inout FaceVoxelsDataPo
 	chunksDrawElementsIndirectCommands[currentChunkIndirectDrawIndex].count = faceVoxelsDataPoolMetadata.numVoxelDataInBucket;
 	chunksDrawElementsIndirectCommands[currentChunkIndirectDrawIndex].instanceCount = 1;
 	chunksDrawElementsIndirectCommands[currentChunkIndirectDrawIndex].firstIndex = 0;
-	chunksDrawElementsIndirectCommands[currentChunkIndirectDrawIndex].baseVertex = int(faceVoxelsDataPoolMetadata.voxelDataBucketOffsetIntoMegaArray);
+	chunksDrawElementsIndirectCommands[currentChunkIndirectDrawIndex].baseVertex = int(faceVoxelsDataPoolMetadata.voxelDataBucketOffsetIntoMegaArrayIndex);
 	chunksDrawElementsIndirectCommands[currentChunkIndirectDrawIndex].baseInstance = packedChunkIndex;
 }
 
@@ -63,6 +63,10 @@ void main(void) {
 		gl_GlobalInvocationID.z == 0) 
 	{
 		drawCount = 0;
+	}
+
+	if (gl_GlobalInvocationID.x >= (worldSizeInChunks.x * worldSizeInChunks.y * worldSizeInChunks.z)) {
+		return;
 	}
 
 	float topFaceDot = dot(vec3(0, 1, 0), cameraPointingDirectionNormalised);

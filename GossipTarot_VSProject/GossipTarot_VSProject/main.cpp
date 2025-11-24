@@ -246,7 +246,7 @@ int main() {
 
 	Camera mainCamera;
 	mainCamera.viewport.dimensions = { WINDOW_WIDTH, WINDOW_HEIGHT };
-	mainCamera.SetProjectionMatrixToPerspectiveProjection(45.0f, 0.1f, 1000.0f);
+	mainCamera.SetProjectionMatrixToPerspectiveProjection(45.0f, 0.1f, 10000.0f);
 
 	Vector3 cameraFront = Vector3{ 0.0f, 0.0f, 1.0f };
 
@@ -323,17 +323,98 @@ int main() {
 
 
 
-
-	Vector3Int worldSizeInChunks = { 16, 16, 16 };		// LIMITED BY COMPRESSION TO INT IN PACKED CHUNK INDEX! Currently limited by each coordinate having 5 bits, i.e max 32 for each coord.
+	// VVV LIMITED BY COMPRESSION TO INT IN PACKED CHUNK INDEX AND NUMBER OF COMPUTE THREADS DISPATCHED! Currently limited by each coordinate having 6 bits, i.e max 62 for each coord but with compute threads dispatched it is limited tp 32.
+	Vector3Int worldSizeInChunks = { 62, 16, 62 };
 	Vector3Int chunkSizeInVoxels = { 32, 32, 32 };
 
 	Vector3Int centreVoxelPositionInWorld = { (worldSizeInChunks.x * chunkSizeInVoxels.x) / 2, (worldSizeInChunks.y * chunkSizeInVoxels.y) / 2, (worldSizeInChunks.z * chunkSizeInVoxels.z) / 2 };
 	cameraTransform.position = { centreVoxelPositionInWorld.x, centreVoxelPositionInWorld.y, centreVoxelPositionInWorld.z };
 
+	const unsigned int numLODLevels = 4;
+
+	unsigned int numVoxelDatasOnLOD_Zero_Bucket = (chunkSizeInVoxels.x / 2) * (chunkSizeInVoxels.y / 2) * (chunkSizeInVoxels.z / 2);
+	std::vector<unsigned int> LODLevelAndChunksMaxSizeInVoxels = {
+		numVoxelDatasOnLOD_Zero_Bucket,
+		numVoxelDatasOnLOD_Zero_Bucket,
+		numVoxelDatasOnLOD_Zero_Bucket,
+		numVoxelDatasOnLOD_Zero_Bucket
+	};
+
+	unsigned int tempNumBuckets = (worldSizeInChunks.x * worldSizeInChunks.y * worldSizeInChunks.z * 6) / numLODLevels;
+	std::vector<unsigned int> numBucketsPerLOD = {
+		0,
+		0,
+		0,
+		0
+	};
+
+	
+	Vector3 currentCameraChunkPosition = Vector3(int(cameraTransform.position.x / (chunkSizeInVoxels.x)), 0.0, int(cameraTransform.position.z / (chunkSizeInVoxels.z)));
+	currentCameraChunkPosition *= chunkSizeInVoxels;
+	Vector3 halfChunkSize = Vector3(chunkSizeInVoxels / 2);
+
+	for (int j = 0; j < worldSizeInChunks.y; j++)
+	{
+		for (int k = 0; k < worldSizeInChunks.z; k++)
+		{
+			for (int i = 0; i < worldSizeInChunks.x; i++)
+			{
+				Vector3 chunkPosition = { i, j, k };
+				chunkPosition *= chunkSizeInVoxels;
+
+				Vector3 curChunkCentrePosition = chunkPosition + halfChunkSize;
+
+				float xDist = (currentCameraChunkPosition.x - curChunkCentrePosition.x);
+				float zDist = (currentCameraChunkPosition.z - curChunkCentrePosition.z);
+
+				float xDistSign = xDist / abs(xDist);
+				float zDistSign = zDist / abs(zDist);
+
+				xDist = abs(xDist);
+				zDist = abs(zDist);
+
+				int xDistIndex = int(xDist / 32);
+				int zDistIndex = int(zDist / 32);
+
+
+				if (xDist <= 64.0 && zDist <= 64.0) {
+
+					numBucketsPerLOD[0]++;
+				}
+				//else if ((xDist > 256.0 && xDist <= 512.0) || (zDist > 256.0 && zDist <= 512.0)) {
+				else if ((xDist > 256.0) || (zDist > 256.0)) {
+
+					numBucketsPerLOD[3]++;
+				}
+				else if ((xDist > 128.0 && xDist <= 256.0) || (zDist > 128.0 && zDist <= 256.0)) {
+
+					numBucketsPerLOD[2]++;
+				}
+				else if ((xDist > 64.0 && xDist <= 128.0) || (zDist > 64.0 && zDist <= 128.0)) {
+
+					numBucketsPerLOD[1]++;
+				}
+
+			}
+		}
+	}
+
+	for (int i = 0; i < numLODLevels; i++)
+	{
+		LODLevelAndChunksMaxSizeInVoxels[i] /= unsigned int(pow(2, i));
+		numBucketsPerLOD[i] *= 6;
+	}
+	
+
+	//unsigned int numVoxelDatasPerBucket = (chunkSizeInVoxels.x / 2) * (chunkSizeInVoxels.y / 2) * (chunkSizeInVoxels.z / 2);
 	unsigned int numVoxelDatasPerBucket = (chunkSizeInVoxels.x / 2) * (chunkSizeInVoxels.y / 2) * (chunkSizeInVoxels.z / 2);
 	unsigned int numBuckets = worldSizeInChunks.x * worldSizeInChunks.y * worldSizeInChunks.z * 6;
 	unsigned int megaVoxelsPerFaceDataBufferObjectBindingLocation = 2;
-	VoxelsDataPool voxelsDataPool(numVoxelDatasPerBucket, numBuckets, megaVoxelsPerFaceDataBufferObjectBindingLocation);
+
+	size_t sizeOfPoolInBytes = numBuckets * numVoxelDatasPerBucket * sizeof(unsigned int);
+
+	//VoxelsDataPool voxelsDataPool(numVoxelDatasPerBucket, numBuckets, megaVoxelsPerFaceDataBufferObjectBindingLocation);
+	VoxelsDataPool voxelsDataPool(numLODLevels, LODLevelAndChunksMaxSizeInVoxels, numBucketsPerLOD, megaVoxelsPerFaceDataBufferObjectBindingLocation);
 
 
 	unsigned int numFaces = worldSizeInChunks.x * worldSizeInChunks.y * worldSizeInChunks.z * 6;
@@ -346,13 +427,13 @@ int main() {
 	
 	unsigned int chunksVoxelsDataPoolMetadatasBindingPoint = 3;
 	ChunksVoxelsDataPoolMetadata chunksVoxelsDataPoolMetadatas(worldSizeInChunks, chunksVoxelsDataPoolMetadatasBindingPoint);
-	GenerateChunksAndAddToIndirectRenderCommandVectorOnCPU(worldSizeInChunks, chunkSizeInVoxels, voxelsDataPool, chunksPerFaceIndirectDrawCommands, chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas, cameraTransform.position);
-	chunksVoxelsDataPoolMetadatas.GPU_UploadChunksVoxelsDataPoolMetadatasToTheGPU();
+	GenerateChunksAndUploadTo_GPUAndAddToIndirectRenderCommandVectorOn_CPU(worldSizeInChunks, chunkSizeInVoxels, voxelsDataPool, chunksPerFaceIndirectDrawCommands, chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas, chunksVoxelsDataPoolMetadatas, cameraTransform.position);
+
 	chunksPerFaceIndirectDrawCommands.GPU_InitCommandBuffer();
 
-	// Todo 1 : Frustum Culling.
-	// Todo 2 : LODs.
-	// Todo 3 : Block types/ block pallet.
+	// Todo 1 : LODs.
+	// Todo 2 : Frustum Culling.
+	// Todo 3 : Block types/ block palette.
 	// Todo 4 : Binary Meshing.
 
 	std::chrono::time_point<std::chrono::high_resolution_clock> lastFrameEndTime = std::chrono::high_resolution_clock::now();
@@ -428,7 +509,7 @@ int main() {
 
 
 		// Render World Geometry
-		RenderMeshOnGPUWithDrawElementsIndirectCommandsWithComputeShader(voxelVertexAndFragmentWithCameraWithTexturesPerFaceSSBODataAsTriangleIndirectDrawShaderProgram, voxelBackfaceCullingComputeShaderProgram, cameraTransform, mainCamera, modelTransform.GetTransformMatrix(), stickmanTextureIndex, commonChunkMeshOnGPU, chunksPerFaceIndirectDrawCommands, voxelsDataPool, chunksVoxelsDataPoolMetadatas);
+		RenderMeshOnGPUWithDrawElementsIndirectCommandsWithComputeShader(voxelVertexAndFragmentWithCameraWithTexturesPerFaceSSBODataAsTriangleIndirectDrawShaderProgram, voxelBackfaceCullingComputeShaderProgram, cameraTransform, mainCamera, modelTransform.GetTransformMatrix(), stickmanTextureIndex, worldSizeInChunks, commonChunkMeshOnGPU, chunksPerFaceIndirectDrawCommands, voxelsDataPool, chunksVoxelsDataPoolMetadatas);
 
 
 

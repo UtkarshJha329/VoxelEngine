@@ -4,6 +4,7 @@ uniform mat4 model;
 uniform mat4 view;
 uniform mat4 projection;
 
+uniform vec3 worldSizeInChunks;
 uniform vec3 cameraWorldVoxelPosition;
 
 layout(binding = 2, std430) readonly buffer VoxelFaceAndPositionData {
@@ -112,8 +113,8 @@ vec2 GetCurrentTexCoordBasedOnVertexIDAndCurFace(uint curFaceIndex) {
 void main()
 {
 	ivec3 numVoxelsInChunk = ivec3(32, 32, 32);
-	uint maxChunkLocalCoord = 31;
-	uint chunkPackedCoordShiftBy = 5;
+	uint maxChunkLocalCoord = 63;
+	uint chunkPackedCoordShiftBy = 6;
 
 	uint maxVoxelLocalCoord = 31;
 	uint voxelCoordBitShiftBy = 5;
@@ -150,7 +151,6 @@ void main()
 //	vec3 currentCameraChunkPosition = vec3(int(cameraWorldVoxelPosition.x / (numVoxelsInChunk.x)), 0.0, int(cameraWorldVoxelPosition.z / (numVoxelsInChunk.z)));
 //	currentCameraChunkPosition *= numVoxelsInChunk;
 
-	vec3 worldSizeInChunks = vec3(16, 1, 16);
 	vec3 worldCentrePosition = (worldSizeInChunks * numVoxelsInChunk) * 0.5;
 	vec3 currentCameraChunkPosition = vec3(worldCentrePosition);
 
@@ -175,6 +175,15 @@ void main()
 
 	if (xDist <= 64.0 && zDist <= 64.0){
 		chunkDebugColour = vec4(1.0);
+//	} else if ((xDist > 256.0 && xDist <= 512.0 ) || (zDist > 256.0 && zDist <= 512.0)) {
+	} else if ((xDist > 256.0) || (zDist > 256.0)) {
+		chunkDebugColour = vec4(0.0, 0.0, 1.0, 1.0);
+
+		float scaleMultiplier = 8.0;
+		xScale *= scaleMultiplier;
+		yScale *= scaleMultiplier;
+		zScale *= scaleMultiplier;
+
 	} else if ((xDist > 128.0 && xDist <= 256.0 ) || (zDist > 128.0 && zDist <= 256.0)) {
 		chunkDebugColour = vec4(0.0, 1.0, 0.0, 1.0);
 

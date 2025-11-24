@@ -37,7 +37,6 @@ void AddBitShiftFaceIDToCompressedVoxelPositionAsTriangleForSSBOOfIndirectDrawCo
 
 	curVoxelCompactPos += bitshiftedFaceID;
 
-	unsigned int baseIndex = compressedChunkVoxelPositions.size();
 	compressedChunkVoxelPositions.push_back(curVoxelCompactPos);
 
 	numIndices += 3;
@@ -66,12 +65,12 @@ void GenerateCommonChunkMeshOnGPU(const Vector3Int& chunkSizeInVoxels, MeshOnGPU
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(indices[0]), indices.data(), GL_STATIC_DRAW);
 }
 
-void WriteFaceVoxelDataToFreeBucketAndFillMetadata(VoxelsDataPool& voxelsDataPool,	std::vector<unsigned int>& compressedChunkFaceVoxelPositions, FaceVoxelsDataPoolMetadata& curChunkFaceVoxelsDataPoolMetadata, unsigned int& numFaceIndices) {
-	if (voxelsDataPool.WriteFaceVoxelDataToFreeBucket(compressedChunkFaceVoxelPositions, curChunkFaceVoxelsDataPoolMetadata)) {
+void GPU_WriteFaceVoxelDataToFreeBucketAndFillMetadata(VoxelsDataPool& voxelsDataPool,	std::vector<unsigned int>& compressedChunkFaceVoxelPositions, FaceVoxelsDataPoolMetadata& curChunkFaceVoxelsDataPoolMetadata, unsigned int& numFaceIndices, const unsigned int& curLODLevel) {
+	if (voxelsDataPool.GPU_WriteFaceVoxelDataToFreeBucket(compressedChunkFaceVoxelPositions, curChunkFaceVoxelsDataPoolMetadata, curLODLevel)) {
 		curChunkFaceVoxelsDataPoolMetadata.numVoxelDataInBucket = numFaceIndices;
 	}
 	else {
-		std::cout << "ERROR : " << "Failed to write data to voxel data pool." << std::endl;
+		std::cout << "ERROR : " << "Failed to write data to voxel data pool. Cur LOD Level := " << curLODLevel << std::endl;
 	}
 }
 
@@ -149,27 +148,28 @@ void GenerateChunkVoxelPositionsOnGPUAsSSBOAsTriangleWithVoxelDataPoolForIndirec
 		}
 	}
 
-	WriteFaceVoxelDataToFreeBucketAndFillMetadata(voxelsDataPool, compressedChunkTopFaceVoxelPositions, curChunkVoxelsDataPoolMetadata.topFaceVoxelsDataPoolMetadata, numTopFaceIndicesInChunk);
-	WriteFaceVoxelDataToFreeBucketAndFillMetadata(voxelsDataPool, compressedChunkBottomFaceVoxelPositions, curChunkVoxelsDataPoolMetadata.bottomFaceVoxelsDataPoolMetadata, numBottomFaceIndicesInChunk);
-	WriteFaceVoxelDataToFreeBucketAndFillMetadata(voxelsDataPool, compressedChunkLeftFaceVoxelPositions, curChunkVoxelsDataPoolMetadata.leftFaceVoxelsDataPoolMetadata, numLeftFaceIndicesInChunk);
-	WriteFaceVoxelDataToFreeBucketAndFillMetadata(voxelsDataPool, compressedChunkRightFaceVoxelPositions, curChunkVoxelsDataPoolMetadata.rightFaceVoxelsDataPoolMetadata, numRightFaceIndicesInChunk);
-	WriteFaceVoxelDataToFreeBucketAndFillMetadata(voxelsDataPool, compressedChunkFrontFaceVoxelPositions, curChunkVoxelsDataPoolMetadata.frontFaceVoxelsDataPoolMetadata, numFrontFaceIndicesInChunk);
-	WriteFaceVoxelDataToFreeBucketAndFillMetadata(voxelsDataPool, compressedChunkBackFaceVoxelPositions, curChunkVoxelsDataPoolMetadata.backFaceVoxelsDataPoolMetadata, numBackFaceIndicesInChunk);
+	GPU_WriteFaceVoxelDataToFreeBucketAndFillMetadata(voxelsDataPool, compressedChunkTopFaceVoxelPositions, curChunkVoxelsDataPoolMetadata.topFaceVoxelsDataPoolMetadata, numTopFaceIndicesInChunk, curChunkLODLevel);
+	GPU_WriteFaceVoxelDataToFreeBucketAndFillMetadata(voxelsDataPool, compressedChunkBottomFaceVoxelPositions, curChunkVoxelsDataPoolMetadata.bottomFaceVoxelsDataPoolMetadata, numBottomFaceIndicesInChunk, curChunkLODLevel);
+	GPU_WriteFaceVoxelDataToFreeBucketAndFillMetadata(voxelsDataPool, compressedChunkLeftFaceVoxelPositions, curChunkVoxelsDataPoolMetadata.leftFaceVoxelsDataPoolMetadata, numLeftFaceIndicesInChunk, curChunkLODLevel);
+	GPU_WriteFaceVoxelDataToFreeBucketAndFillMetadata(voxelsDataPool, compressedChunkRightFaceVoxelPositions, curChunkVoxelsDataPoolMetadata.rightFaceVoxelsDataPoolMetadata, numRightFaceIndicesInChunk, curChunkLODLevel);
+	GPU_WriteFaceVoxelDataToFreeBucketAndFillMetadata(voxelsDataPool, compressedChunkFrontFaceVoxelPositions, curChunkVoxelsDataPoolMetadata.frontFaceVoxelsDataPoolMetadata, numFrontFaceIndicesInChunk, curChunkLODLevel);
+	GPU_WriteFaceVoxelDataToFreeBucketAndFillMetadata(voxelsDataPool, compressedChunkBackFaceVoxelPositions, curChunkVoxelsDataPoolMetadata.backFaceVoxelsDataPoolMetadata, numBackFaceIndicesInChunk, curChunkLODLevel);
 }
 
 void CPU_WriteFaceDataToDrawCommands(const unsigned int& packedChunkIndex, const FaceVoxelsDataPoolMetadata& faceVoxelsDataPoolMetadata, ChunksPerFaceIndirectDrawCommands& chunksPerFaceIndirectDrawCommands) {
-	chunksPerFaceIndirectDrawCommands.cpu_drawElementsIndirectCommands[chunksPerFaceIndirectDrawCommands.numDrawCommandsFilled] = {
+
+	int currentDrawCommandIndex = chunksPerFaceIndirectDrawCommands.numDrawCommandsFilled.fetch_add(1);
+
+	chunksPerFaceIndirectDrawCommands.cpu_drawElementsIndirectCommands[currentDrawCommandIndex] = {
 		.count = faceVoxelsDataPoolMetadata.numVoxelDataInBucket,
 		.instanceCount = 1,
 		.firstIndex = 0,
-		.baseVertex = static_cast<int>(faceVoxelsDataPoolMetadata.voxelDataBucketOffsetIntoMegaArray),
+		.baseVertex = static_cast<int>(faceVoxelsDataPoolMetadata.voxelDataBucketOffsetIntoMegaArrayIndex),
 		.baseInstance = packedChunkIndex
 	};
-
-	chunksPerFaceIndirectDrawCommands.numDrawCommandsFilled++;
 }
 
-void WriteChunkDataToDrawCommand(const ChunkVoxelsDataPoolMetadata& curChunkVoxelsDataPoolMetadata, ChunksPerFaceIndirectDrawCommands& chunksPerFaceIndirectDrawCommands) {
+void CPU_WriteChunkDataToDrawCommand(const ChunkVoxelsDataPoolMetadata& curChunkVoxelsDataPoolMetadata, ChunksPerFaceIndirectDrawCommands& chunksPerFaceIndirectDrawCommands) {
 
 	CPU_WriteFaceDataToDrawCommands(curChunkVoxelsDataPoolMetadata.packedChunkIndex, curChunkVoxelsDataPoolMetadata.topFaceVoxelsDataPoolMetadata, chunksPerFaceIndirectDrawCommands);
 	CPU_WriteFaceDataToDrawCommands(curChunkVoxelsDataPoolMetadata.packedChunkIndex, curChunkVoxelsDataPoolMetadata.bottomFaceVoxelsDataPoolMetadata, chunksPerFaceIndirectDrawCommands);
@@ -179,68 +179,68 @@ void WriteChunkDataToDrawCommand(const ChunkVoxelsDataPoolMetadata& curChunkVoxe
 	CPU_WriteFaceDataToDrawCommands(curChunkVoxelsDataPoolMetadata.packedChunkIndex, curChunkVoxelsDataPoolMetadata.backFaceVoxelsDataPoolMetadata, chunksPerFaceIndirectDrawCommands);
 }
 
-void FillDrawCommandsForChunksBasedOnCameraViewDirection(const Vector3& cameraForward, VoxelsDataPool& voxelsDataPool, ChunksPerFaceIndirectDrawCommands& chunksPerFaceIndirectDrawCommands, std::vector<ChunkVoxelsDataPoolMetadata> chunksVoxelsDataPoolMetadatas) {
-
-	Vector3 cameraPointingDirectionNormalised = glm::normalize(cameraForward);
-
-	//std::cout << cameraPointingDirectionNormalised.x << ", " << cameraPointingDirectionNormalised.y << ", " << cameraPointingDirectionNormalised.z << std::endl;
-
-	float topFaceDot = glm::dot(Vector3{ 0, 1, 0 }, cameraPointingDirectionNormalised);
-	float bottomFaceDot = glm::dot(Vector3{ 0, -1, 0 }, cameraPointingDirectionNormalised);
-	float leftFaceDot = glm::dot(Vector3{ -1, 0, 0 }, cameraPointingDirectionNormalised);
-	float rightFaceDot = glm::dot(Vector3{ 1, 0, 0 }, cameraPointingDirectionNormalised);
-	float frontFaceDot = glm::dot(Vector3{ 0, 0, 1 }, cameraPointingDirectionNormalised);
-	float backFaceDot = glm::dot(Vector3{ 0, 0, -1 }, cameraPointingDirectionNormalised);
-
-	chunksPerFaceIndirectDrawCommands.numDrawCommandsFilled = 0;
-
-	if (topFaceDot <= 0.0f) {
-		//std::cout << "Can see top faces." << topFaceDot << std::endl;
-		for (int i = 0; i < chunksVoxelsDataPoolMetadatas.size(); i++)
-		{
-			CPU_WriteFaceDataToDrawCommands(chunksVoxelsDataPoolMetadatas[i].packedChunkIndex, chunksVoxelsDataPoolMetadatas[i].topFaceVoxelsDataPoolMetadata, chunksPerFaceIndirectDrawCommands);
-		}
-	}
-	if (bottomFaceDot <= 0.0f) {
-		//std::cout << "Can see bottom faces." << bottomFaceDot << std::endl;
-		for (int i = 0; i < chunksVoxelsDataPoolMetadatas.size(); i++)
-		{
-			CPU_WriteFaceDataToDrawCommands(chunksVoxelsDataPoolMetadatas[i].packedChunkIndex, chunksVoxelsDataPoolMetadatas[i].bottomFaceVoxelsDataPoolMetadata, chunksPerFaceIndirectDrawCommands);
-		}
-	}
-	if (leftFaceDot <= 0.0f) {
-		//std::cout << "Can see left faces." << leftFaceDot << std::endl;
-		for (int i = 0; i < chunksVoxelsDataPoolMetadatas.size(); i++)
-		{
-			CPU_WriteFaceDataToDrawCommands(chunksVoxelsDataPoolMetadatas[i].packedChunkIndex, chunksVoxelsDataPoolMetadatas[i].leftFaceVoxelsDataPoolMetadata, chunksPerFaceIndirectDrawCommands);
-		}
-	}
-	if (rightFaceDot <= 0.0f) {
-		//std::cout << "Can see right faces." << rightFaceDot << std::endl;
-		for (int i = 0; i < chunksVoxelsDataPoolMetadatas.size(); i++)
-		{
-			CPU_WriteFaceDataToDrawCommands(chunksVoxelsDataPoolMetadatas[i].packedChunkIndex, chunksVoxelsDataPoolMetadatas[i].rightFaceVoxelsDataPoolMetadata, chunksPerFaceIndirectDrawCommands);
-		}
-	}
-	if (frontFaceDot <= 0.0f) {
-		//std::cout << "Can see front faces." << frontFaceDot << std::endl;
-		for (int i = 0; i < chunksVoxelsDataPoolMetadatas.size(); i++)
-		{
-			CPU_WriteFaceDataToDrawCommands(chunksVoxelsDataPoolMetadatas[i].packedChunkIndex, chunksVoxelsDataPoolMetadatas[i].frontFaceVoxelsDataPoolMetadata, chunksPerFaceIndirectDrawCommands);
-		}
-	}
-	if (backFaceDot <= 0.0f) {
-		//std::cout << "Can see back faces." << backFaceDot << std::endl;
-		for (int i = 0; i < chunksVoxelsDataPoolMetadatas.size(); i++)
-		{
-			CPU_WriteFaceDataToDrawCommands(chunksVoxelsDataPoolMetadatas[i].packedChunkIndex, chunksVoxelsDataPoolMetadatas[i].backFaceVoxelsDataPoolMetadata, chunksPerFaceIndirectDrawCommands);
-		}
-	}
-
-	chunksPerFaceIndirectDrawCommands.GPU_UpdateIndirectCommandsBuffer(chunksPerFaceIndirectDrawCommands.numDrawCommandsFilled);
-	//std::cout << chunksPerFaceIndirectDrawCommands.numDrawCommandsFilled << std::endl;
-
-}
+//void FillDrawCommandsForChunksBasedOnCameraViewDirection(const Vector3& cameraForward, VoxelsDataPool& voxelsDataPool, ChunksPerFaceIndirectDrawCommands& chunksPerFaceIndirectDrawCommands, std::vector<ChunkVoxelsDataPoolMetadata> chunksVoxelsDataPoolMetadatas) {
+//
+//	Vector3 cameraPointingDirectionNormalised = glm::normalize(cameraForward);
+//
+//	//std::cout << cameraPointingDirectionNormalised.x << ", " << cameraPointingDirectionNormalised.y << ", " << cameraPointingDirectionNormalised.z << std::endl;
+//
+//	float topFaceDot = glm::dot(Vector3{ 0, 1, 0 }, cameraPointingDirectionNormalised);
+//	float bottomFaceDot = glm::dot(Vector3{ 0, -1, 0 }, cameraPointingDirectionNormalised);
+//	float leftFaceDot = glm::dot(Vector3{ -1, 0, 0 }, cameraPointingDirectionNormalised);
+//	float rightFaceDot = glm::dot(Vector3{ 1, 0, 0 }, cameraPointingDirectionNormalised);
+//	float frontFaceDot = glm::dot(Vector3{ 0, 0, 1 }, cameraPointingDirectionNormalised);
+//	float backFaceDot = glm::dot(Vector3{ 0, 0, -1 }, cameraPointingDirectionNormalised);
+//
+//	chunksPerFaceIndirectDrawCommands.numDrawCommandsFilled = 0;
+//
+//	if (topFaceDot <= 0.0f) {
+//		//std::cout << "Can see top faces." << topFaceDot << std::endl;
+//		for (int i = 0; i < chunksVoxelsDataPoolMetadatas.size(); i++)
+//		{
+//			CPU_WriteFaceDataToDrawCommands(chunksVoxelsDataPoolMetadatas[i].packedChunkIndex, chunksVoxelsDataPoolMetadatas[i].topFaceVoxelsDataPoolMetadata, chunksPerFaceIndirectDrawCommands);
+//		}
+//	}
+//	if (bottomFaceDot <= 0.0f) {
+//		//std::cout << "Can see bottom faces." << bottomFaceDot << std::endl;
+//		for (int i = 0; i < chunksVoxelsDataPoolMetadatas.size(); i++)
+//		{
+//			CPU_WriteFaceDataToDrawCommands(chunksVoxelsDataPoolMetadatas[i].packedChunkIndex, chunksVoxelsDataPoolMetadatas[i].bottomFaceVoxelsDataPoolMetadata, chunksPerFaceIndirectDrawCommands);
+//		}
+//	}
+//	if (leftFaceDot <= 0.0f) {
+//		//std::cout << "Can see left faces." << leftFaceDot << std::endl;
+//		for (int i = 0; i < chunksVoxelsDataPoolMetadatas.size(); i++)
+//		{
+//			CPU_WriteFaceDataToDrawCommands(chunksVoxelsDataPoolMetadatas[i].packedChunkIndex, chunksVoxelsDataPoolMetadatas[i].leftFaceVoxelsDataPoolMetadata, chunksPerFaceIndirectDrawCommands);
+//		}
+//	}
+//	if (rightFaceDot <= 0.0f) {
+//		//std::cout << "Can see right faces." << rightFaceDot << std::endl;
+//		for (int i = 0; i < chunksVoxelsDataPoolMetadatas.size(); i++)
+//		{
+//			CPU_WriteFaceDataToDrawCommands(chunksVoxelsDataPoolMetadatas[i].packedChunkIndex, chunksVoxelsDataPoolMetadatas[i].rightFaceVoxelsDataPoolMetadata, chunksPerFaceIndirectDrawCommands);
+//		}
+//	}
+//	if (frontFaceDot <= 0.0f) {
+//		//std::cout << "Can see front faces." << frontFaceDot << std::endl;
+//		for (int i = 0; i < chunksVoxelsDataPoolMetadatas.size(); i++)
+//		{
+//			CPU_WriteFaceDataToDrawCommands(chunksVoxelsDataPoolMetadatas[i].packedChunkIndex, chunksVoxelsDataPoolMetadatas[i].frontFaceVoxelsDataPoolMetadata, chunksPerFaceIndirectDrawCommands);
+//		}
+//	}
+//	if (backFaceDot <= 0.0f) {
+//		//std::cout << "Can see back faces." << backFaceDot << std::endl;
+//		for (int i = 0; i < chunksVoxelsDataPoolMetadatas.size(); i++)
+//		{
+//			CPU_WriteFaceDataToDrawCommands(chunksVoxelsDataPoolMetadatas[i].packedChunkIndex, chunksVoxelsDataPoolMetadatas[i].backFaceVoxelsDataPoolMetadata, chunksPerFaceIndirectDrawCommands);
+//		}
+//	}
+//
+//	chunksPerFaceIndirectDrawCommands.GPU_UpdateIndirectCommandsBuffer(chunksPerFaceIndirectDrawCommands.numDrawCommandsFilled);
+//	//std::cout << chunksPerFaceIndirectDrawCommands.numDrawCommandsFilled << std::endl;
+//
+//}
 
 //void AddChunkToDrawCommand(const Vector3Int& chunkIndex, const ChunkVoxelsDataPoolMetadata& curChunkVoxelsDataPoolMetadata, IndirectDrawCommands& indirectDrawcommands) {
 //

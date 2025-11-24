@@ -1,5 +1,7 @@
 #pragma once
 
+#include <atomic>
+
 #include <vector>
 
 #include "glad/glad.h"
@@ -20,7 +22,7 @@ public:
 
 	std::vector<DrawElementsIndirectCommand> cpu_drawElementsIndirectCommands;
 
-	unsigned int numDrawCommandsFilled;
+	std::atomic<int> numDrawCommandsFilled{ 0 };
 
 	unsigned int gpu_drawElementsIndirectCommandsBufferID;
 	DrawElementsIndirectCommand* gpu_drawElementsIndirectCommandsBufferPointer;
@@ -74,10 +76,10 @@ public:
 		gpu_drawElementsIndirectCommandsBufferPointer = reinterpret_cast<DrawElementsIndirectCommand*>(mappedPointerToBuffer);
 	}
 
-	void GPU_UpdateIndirectCommandsBuffer(unsigned int _numDrawCommandsFilled) {
-		numDrawCommandsFilled = _numDrawCommandsFilled;
-		memcpy(gpu_drawElementsIndirectCommandsBufferPointer, cpu_drawElementsIndirectCommands.data(), numDrawCommandsFilled * sizeof(DrawElementsIndirectCommand));
-	}
+	//void GPU_UpdateIndirectCommandsBuffer(unsigned int _numDrawCommandsFilled) {
+	//	numDrawCommandsFilled = _numDrawCommandsFilled;
+	//	memcpy(gpu_drawElementsIndirectCommandsBufferPointer, cpu_drawElementsIndirectCommands.data(), numDrawCommandsFilled * sizeof(DrawElementsIndirectCommand));
+	//}
 
 	void GPU_BindIndirectCommandsBufferAndDrawCountBufferToBindingPoints() {
 		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, gpu_drawElementsIndirectCommandsBufferBindingPoint, gpu_drawElementsIndirectCommandsBufferID);
