@@ -1,6 +1,7 @@
 #pragma once
 
 #include <utility>
+#include <future>
 #include <omp.h>
 
 #include "GLMIncludes.h"
@@ -91,7 +92,7 @@ void GenerateChunkAndUploadTo_GPUAndAddToIndirectRenderCommandVectorOn_CPU(const
 	}
 }
 
-void GenerateChunksAndUploadTo_GPUAndAddToIndirectRenderCommandVectorOn_CPU(const Vector3Int& worldSizeInChunks, const Vector3Int& chunkSizeInVoxels, std::vector<int>& chunksLODLevel, VoxelsDataPool& voxelsDataPool, ChunksPerFaceIndirectDrawCommands& chunksPerFaceIndirectDrawCommands, std::vector<ChunkVoxelsDataPoolMetadata>& chunksVoxelsDataPoolMetadatas, ChunksVoxelsDataPoolMetadata& chunksVoxelsDataPoolMetadata, const Vector3& cameraPosition) {
+void GenerateChunksAndUploadTo_GPUAndAddToIndirectRenderCommandVectorOn_CPU(const Vector3Int& worldSizeInChunks, const Vector3Int& chunkSizeInVoxels, std::vector<int>& chunksLODLevel, VoxelsDataPool& voxelsDataPool, ChunksPerFaceIndirectDrawCommands& chunksPerFaceIndirectDrawCommands, std::vector<ChunkVoxelsDataPoolMetadata>& chunksVoxelsDataPoolMetadatas, ChunksVoxelsDataPoolMetadata& chunksVoxelsDataPoolMetadata, const Vector3& cameraPosition, std::vector<std::future<void>>& chunkGenerationFutures) {
 
 	Vector3 currentCameraChunkPosition = Vector3(int(cameraPosition.x / (chunkSizeInVoxels.x)), 0.0, int(cameraPosition.z / (chunkSizeInVoxels.z)));
 	currentCameraChunkPosition *= chunkSizeInVoxels;
@@ -105,16 +106,33 @@ void GenerateChunksAndUploadTo_GPUAndAddToIndirectRenderCommandVectorOn_CPU(cons
 	fnFractal->SetOctaveCount(5);
 
 
-	#pragma omp parallel
+	//#pragma omp parallel
 	{
-		#pragma omp for collapse(3) nowait
+		//#pragma omp for collapse(3) nowait
 		for (int j = 0; j < worldSizeInChunks.y; j++)
 		{
 			for (int k = 0; k < worldSizeInChunks.z; k++)
 			{
 				for (int i = 0; i < worldSizeInChunks.x; i++)
 				{
-					GenerateChunkAndUploadTo_GPUAndAddToIndirectRenderCommandVectorOn_CPU(Vector3Int{ i, j, k }, chunksLODLevel, fnFractal, currentCameraChunkPosition, halfChunkSize, worldSizeInChunks, chunkSizeInVoxels, voxelsDataPool, chunksPerFaceIndirectDrawCommands, chunksVoxelsDataPoolMetadatas, chunksVoxelsDataPoolMetadata, cameraPosition);
+					//GenerateChunkAndUploadTo_GPUAndAddToIndirectRenderCommandVectorOn_CPU(Vector3Int{ i, j, k }, chunksLODLevel, fnFractal, currentCameraChunkPosition, halfChunkSize, worldSizeInChunks, chunkSizeInVoxels, voxelsDataPool, chunksPerFaceIndirectDrawCommands, chunksVoxelsDataPoolMetadatas, chunksVoxelsDataPoolMetadata, cameraPosition);
+
+					chunkGenerationFutures.push_back(std::async(
+						std::launch::async,
+						GenerateChunkAndUploadTo_GPUAndAddToIndirectRenderCommandVectorOn_CPU,
+						Vector3Int{ i, j, k },
+						std::ref(chunksLODLevel),               // <-- ref
+						fnFractal,                              // copied
+						currentCameraChunkPosition,
+						halfChunkSize,
+						worldSizeInChunks,
+						chunkSizeInVoxels,
+						std::ref(voxelsDataPool),               // <-- ref
+						std::ref(chunksPerFaceIndirectDrawCommands), // <-- ref
+						std::ref(chunksVoxelsDataPoolMetadatas),     // <-- ref
+						std::ref(chunksVoxelsDataPoolMetadata),      // <-- ref
+						cameraPosition
+					));
 				}
 			}
 		}
