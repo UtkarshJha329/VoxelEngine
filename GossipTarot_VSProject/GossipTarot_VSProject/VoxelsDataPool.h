@@ -103,14 +103,16 @@ public:
 
 	}
 
+	void MakeBucketAFreeBucket(const unsigned int& bucketIndexToFree, const unsigned int& curLODLevel) {
+		freeDataBucketsPerLODPositionInMegaVoxelsArray[curLODLevel].push(bucketIndexToFree);
+	}
+
 private:
 
-	bool GetFreeBucket(unsigned int& freePoolOffsetInMegaVoxelsArrayInBytes, const unsigned int& LODLevel) {
+	bool GetFreeBucket(unsigned int& freePoolOffsetInMegaVoxelsArrayIndex, const unsigned int& LODLevel) {
 
 		if (!freeDataBucketsPerLODPositionInMegaVoxelsArray[LODLevel].empty()) {
-		//if (!freeDataBucketsPerLODPositionInMegaVoxelsArray[0].empty()) {
-			freePoolOffsetInMegaVoxelsArrayInBytes = freeDataBucketsPerLODPositionInMegaVoxelsArray[LODLevel].pop();
-			//freePoolOffsetInMegaVoxelsArrayInBytes = freeDataBucketsPerLODPositionInMegaVoxelsArray[0].pop();
+			freePoolOffsetInMegaVoxelsArrayIndex = freeDataBucketsPerLODPositionInMegaVoxelsArray[LODLevel].pop();
 			return true;
 		}
 

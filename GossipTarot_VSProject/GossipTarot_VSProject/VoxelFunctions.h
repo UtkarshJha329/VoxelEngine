@@ -51,7 +51,7 @@ void GenerateCommonChunkMeshOnGPU(const Vector3Int& chunkSizeInVoxels, MeshOnGPU
 
 	for (unsigned int i = 0; i < totalNumFaces; i++)
 	{
-		unsigned int currentIndex = i << 2;
+		unsigned int currentIndex = i << 2;				// For making space for triangle vertex ID which is in the range [0, 1, 2] which is added below.
 		indices[(3 * i) + 0] = (currentIndex + 0);
 		indices[(3 * i) + 1] = (currentIndex + 1);
 		indices[(3 * i) + 2] = (currentIndex + 2);

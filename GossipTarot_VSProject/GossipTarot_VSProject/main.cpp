@@ -1,6 +1,8 @@
 
 #include <iostream>
 
+#include <unordered_map>
+
 #include <sstream>
 #include <string>
 #include <iomanip>
@@ -323,8 +325,8 @@ int main() {
 
 
 
-	// VVV LIMITED BY COMPRESSION TO INT IN PACKED CHUNK INDEX AND NUMBER OF COMPUTE THREADS DISPATCHED! Currently limited by each coordinate having 6 bits, i.e max 62 for each coord but with compute threads dispatched it is limited tp 32.
-	Vector3Int worldSizeInChunks = { 62, 16, 62 };
+	// VVV LIMITED BY COMPRESSION TO INT IN PACKED CHUNK INDEX AND NUMBER OF COMPUTE THREADS DISPATCHED! Currently limited by each coordinate having 7 bits, i.e max 127 for each coord but with compute threads dispatched it is limited to __.
+	Vector3Int worldSizeInChunks = { 64, 16, 64 };
 	Vector3Int chunkSizeInVoxels = { 32, 32, 32 };
 
 	Vector3Int centreVoxelPositionInWorld = { (worldSizeInChunks.x * chunkSizeInVoxels.x) / 2, (worldSizeInChunks.y * chunkSizeInVoxels.y) / 2, (worldSizeInChunks.z * chunkSizeInVoxels.z) / 2 };
@@ -340,7 +342,7 @@ int main() {
 		numVoxelDatasOnLOD_Zero_Bucket
 	};
 
-	unsigned int tempNumBuckets = (worldSizeInChunks.x * worldSizeInChunks.y * worldSizeInChunks.z * 6) / numLODLevels;
+	unsigned int totalNumChunks = worldSizeInChunks.x * worldSizeInChunks.y * worldSizeInChunks.z;
 	std::vector<unsigned int> numBucketsPerLOD = {
 		0,
 		0,
@@ -348,7 +350,6 @@ int main() {
 		0
 	};
 
-	
 	Vector3 currentCameraChunkPosition = Vector3(int(cameraTransform.position.x / (chunkSizeInVoxels.x)), 0.0, int(cameraTransform.position.z / (chunkSizeInVoxels.z)));
 	currentCameraChunkPosition *= chunkSizeInVoxels;
 	Vector3 halfChunkSize = Vector3(chunkSizeInVoxels / 2);
@@ -359,8 +360,8 @@ int main() {
 		{
 			for (int i = 0; i < worldSizeInChunks.x; i++)
 			{
-				Vector3 chunkPosition = { i, j, k };
-				chunkPosition *= chunkSizeInVoxels;
+				Vector3Int chunkIndex = { i, j, k };
+				Vector3 chunkPosition = chunkIndex * chunkSizeInVoxels;
 
 				Vector3 curChunkCentrePosition = chunkPosition + halfChunkSize;
 
@@ -394,7 +395,6 @@ int main() {
 
 					numBucketsPerLOD[1]++;
 				}
-
 			}
 		}
 	}
@@ -425,9 +425,13 @@ int main() {
 	MeshOnGPU commonChunkMeshOnGPU;
 	GenerateCommonChunkMeshOnGPU(chunkSizeInVoxels, commonChunkMeshOnGPU);
 	
+	std::vector<int> chunksLODLevel;
+	chunksLODLevel.reserve(totalNumChunks);
+	chunksLODLevel.resize(totalNumChunks);
+
 	unsigned int chunksVoxelsDataPoolMetadatasBindingPoint = 3;
 	ChunksVoxelsDataPoolMetadata chunksVoxelsDataPoolMetadatas(worldSizeInChunks, chunksVoxelsDataPoolMetadatasBindingPoint);
-	GenerateChunksAndUploadTo_GPUAndAddToIndirectRenderCommandVectorOn_CPU(worldSizeInChunks, chunkSizeInVoxels, voxelsDataPool, chunksPerFaceIndirectDrawCommands, chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas, chunksVoxelsDataPoolMetadatas, cameraTransform.position);
+	GenerateChunksAndUploadTo_GPUAndAddToIndirectRenderCommandVectorOn_CPU(worldSizeInChunks, chunkSizeInVoxels, chunksLODLevel, voxelsDataPool, chunksPerFaceIndirectDrawCommands, chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas, chunksVoxelsDataPoolMetadatas, cameraTransform.position);
 
 	chunksPerFaceIndirectDrawCommands.GPU_InitCommandBuffer();
 
@@ -497,6 +501,56 @@ int main() {
 			}
 			if (GetKeyHeld(KeyCode::KEY_E)) {
 				cameraTransform.position -= cameraTransform.worldUp * moveSpeed * deltaTime;
+			}
+
+			std::vector<std::pair<Vector3Int, int>> newChunkLODLevels;
+			CheckChunksForLODChanges(chunksLODLevel, cameraTransform.position, chunkSizeInVoxels, worldSizeInChunks, newChunkLODLevels);
+
+			if (!newChunkLODLevels.empty()) {
+
+				Vector3 currentCameraChunkPosition = Vector3(int(cameraTransform.position.x / (chunkSizeInVoxels.x)), 0.0, int(cameraTransform.position.z / (chunkSizeInVoxels.z)));
+				currentCameraChunkPosition *= chunkSizeInVoxels;
+
+				Vector3 halfChunkSize = Vector3(chunkSizeInVoxels / 2);
+
+				auto fnSimplex = FastNoise::New<FastNoise::Simplex>();
+				auto fnFractal = FastNoise::New<FastNoise::FractalFBm>();
+
+				fnFractal->SetSource(fnSimplex);
+				fnFractal->SetOctaveCount(5);
+
+				for (unsigned int i = 0; i < newChunkLODLevels.size(); i++)
+				{
+					Vector3Int curChunkIndex = newChunkLODLevels[i].first;
+					unsigned int flattenedChunkIndex = GetFlattenedChunkIndexForChunksVoxelsDataPoolMetadatas(worldSizeInChunks, curChunkIndex);
+
+					int previousLODLevelOfCurChunk = chunksLODLevel[flattenedChunkIndex];
+
+					unsigned int flattenedChunkIndexForVoxelsDataPoolMetadatas = GetFlattenedChunkIndexForChunksVoxelsDataPoolMetadatas(worldSizeInChunks, curChunkIndex);
+
+					unsigned int chunksCurrentTopFaceBucketIndex = chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas[flattenedChunkIndexForVoxelsDataPoolMetadatas].topFaceVoxelsDataPoolMetadata.voxelDataBucketOffsetIntoMegaArrayIndex;
+					voxelsDataPool.MakeBucketAFreeBucket(chunksCurrentTopFaceBucketIndex, previousLODLevelOfCurChunk);
+
+					unsigned int chunksCurrentBottomFaceBucketIndex = chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas[flattenedChunkIndexForVoxelsDataPoolMetadatas].bottomFaceVoxelsDataPoolMetadata.voxelDataBucketOffsetIntoMegaArrayIndex;
+					voxelsDataPool.MakeBucketAFreeBucket(chunksCurrentBottomFaceBucketIndex, previousLODLevelOfCurChunk);
+					
+					unsigned int chunksCurrentFrontFaceBucketIndex = chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas[flattenedChunkIndexForVoxelsDataPoolMetadatas].frontFaceVoxelsDataPoolMetadata.voxelDataBucketOffsetIntoMegaArrayIndex;
+					voxelsDataPool.MakeBucketAFreeBucket(chunksCurrentFrontFaceBucketIndex, previousLODLevelOfCurChunk);
+					
+					unsigned int chunksCurrentBackFaceBucketIndex = chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas[flattenedChunkIndexForVoxelsDataPoolMetadatas].backFaceVoxelsDataPoolMetadata.voxelDataBucketOffsetIntoMegaArrayIndex;
+					voxelsDataPool.MakeBucketAFreeBucket(chunksCurrentBackFaceBucketIndex, previousLODLevelOfCurChunk);
+					
+					unsigned int chunksCurrentLeftFaceBucketIndex = chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas[flattenedChunkIndexForVoxelsDataPoolMetadatas].leftFaceVoxelsDataPoolMetadata.voxelDataBucketOffsetIntoMegaArrayIndex;
+					voxelsDataPool.MakeBucketAFreeBucket(chunksCurrentLeftFaceBucketIndex, previousLODLevelOfCurChunk);
+					
+					unsigned int chunksCurrentRightFaceBucketIndex = chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas[flattenedChunkIndexForVoxelsDataPoolMetadatas].rightFaceVoxelsDataPoolMetadata.voxelDataBucketOffsetIntoMegaArrayIndex;
+					voxelsDataPool.MakeBucketAFreeBucket(chunksCurrentRightFaceBucketIndex, previousLODLevelOfCurChunk);
+				}
+
+				for (unsigned int i = 0; i < newChunkLODLevels.size(); i++)
+				{
+					GenerateChunkAndUploadTo_GPUAndAddToIndirectRenderCommandVectorOn_CPU(newChunkLODLevels[i].first, chunksLODLevel, fnFractal, currentCameraChunkPosition, halfChunkSize, worldSizeInChunks, chunkSizeInVoxels, voxelsDataPool, chunksPerFaceIndirectDrawCommands, chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas, chunksVoxelsDataPoolMetadatas, cameraTransform.position);
+				}
 			}
 		}
 		else {

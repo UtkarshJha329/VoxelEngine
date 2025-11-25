@@ -113,13 +113,14 @@ vec2 GetCurrentTexCoordBasedOnVertexIDAndCurFace(uint curFaceIndex) {
 void main()
 {
 	ivec3 numVoxelsInChunk = ivec3(32, 32, 32);
-	uint maxChunkLocalCoord = 63;
-	uint chunkPackedCoordShiftBy = 6;
+	uint maxChunkLocalCoord = 127;
+	uint chunkPackedCoordShiftBy = 7;
+	uint maxLODLevel = 3;
 
 	uint maxVoxelLocalCoord = 31;
 	uint voxelCoordBitShiftBy = 5;
 
-	uint curVertexDataID = GetCurrentVertexIDWithoutBaseVertex() >> 2;
+	uint curVertexDataID = GetCurrentVertexIDWithoutBaseVertex() >> 2;		// Because GenerateCommonChunkMeshOnGPU in VoxelFunctions.h does bit shift to the left by 2 bits for adding triangle vertex ID of [0, 1, 2];
 	curVertexDataID += gl_BaseVertex;
     uint currentInstancePosition = voxelFaceAndPositionData[curVertexDataID];
 
@@ -146,76 +147,30 @@ void main()
 
 	ivec3 chunkPosition = ivec3(chunkXPos, chunkYPos, chunkZPos);
 
+	uint chunkLODLevel = packedChunkCoords & 3;
 
-
-//	vec3 currentCameraChunkPosition = vec3(int(cameraWorldVoxelPosition.x / (numVoxelsInChunk.x)), 0.0, int(cameraWorldVoxelPosition.z / (numVoxelsInChunk.z)));
-//	currentCameraChunkPosition *= numVoxelsInChunk;
-
-	vec3 worldCentrePosition = (worldSizeInChunks * numVoxelsInChunk) * 0.5;
-	vec3 currentCameraChunkPosition = vec3(worldCentrePosition);
-
-	vec3 curChunkCentrePosition = chunkPosition + (numVoxelsInChunk * 0.5);
-
-	float xDist = (currentCameraChunkPosition.x - curChunkCentrePosition.x);
-	float zDist = (currentCameraChunkPosition.z - curChunkCentrePosition.z);
-
-	float xDistSign = sign(xDist);
-	float zDistSign = sign(zDist);
-	
-	xDist = abs(xDist);
-	zDist = abs(zDist);
-
-//	float xScale = 1.0 * xDistSign;
-//	float zScale = 1.0 * zDistSign;
-
-	float xScale = 1.0;
-	float yScale = 1.0;
-	float zScale = 1.0;
-
-
-	if (xDist <= 64.0 && zDist <= 64.0){
+	if (chunkLODLevel == 0){
 		chunkDebugColour = vec4(1.0);
-//	} else if ((xDist > 256.0 && xDist <= 512.0 ) || (zDist > 256.0 && zDist <= 512.0)) {
-	} else if ((xDist > 256.0) || (zDist > 256.0)) {
+	} else if (chunkLODLevel == 3) {
 		chunkDebugColour = vec4(0.0, 0.0, 1.0, 1.0);
 
-		float scaleMultiplier = 8.0;
-		xScale *= scaleMultiplier;
-		yScale *= scaleMultiplier;
-		zScale *= scaleMultiplier;
-
-	} else if ((xDist > 128.0 && xDist <= 256.0 ) || (zDist > 128.0 && zDist <= 256.0)) {
+	} else if (chunkLODLevel == 2) {
 		chunkDebugColour = vec4(0.0, 1.0, 0.0, 1.0);
 
-		float scaleMultiplier = 4.0;
-		xScale *= scaleMultiplier;
-		yScale *= scaleMultiplier;
-		zScale *= scaleMultiplier;
-
-	} else if ((xDist > 64.0 && xDist <= 128.0) || (zDist > 64.0 && zDist <= 128.0)) {
+	} else if (chunkLODLevel == 1) {
 		chunkDebugColour = vec4(1.0, 0.0, 0.0, 1.0);
-
-		float scaleMultiplier = 2.0;
-		xScale *= scaleMultiplier;
-		yScale *= scaleMultiplier;
-		zScale *= scaleMultiplier;
 	}
 
-//	xScale = 1.0;
-//	zScale = 1.0;
+	float scaleFromLOD = pow(2, chunkLODLevel);
+	float xScale = scaleFromLOD;
+	float yScale = scaleFromLOD;
+	float zScale = scaleFromLOD;
 
 
 	uint curFace = currentInstancePosition & 7;
     vec3 vertexPosition = chunkPosition + (voxelLocalPosition) + (GetCurrentVertexBasedOnFaceIndex(curFace) * vec3(xScale, yScale, zScale));
-//	vec3 vertexPosition = chunkPosition + (voxelLocalPosition) + (GetCurrentVertexBasedOnFaceIndex(curFace) * vec3(xScale, 1.0, zScale));
-
-
-
-
 
     gl_Position = projection * view * model * vec4(vertexPosition, 1.0);
     texCoords = GetCurrentTexCoordBasedOnVertexIDAndCurFace(curFace);
-
-
 
 }
