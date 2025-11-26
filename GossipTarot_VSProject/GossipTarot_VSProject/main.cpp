@@ -10,6 +10,8 @@
 #include <cmath>
 #include <chrono>
 
+#include <omp.h>
+
 #include "glad/glad.h"
 #include "GLFW/glfw3.h"
 
@@ -98,6 +100,20 @@ void RenderDeltaTimeInMS(const ShaderProgram& shaderForRendering, const int& roo
 	std::string deltaTimeString = deltaTimeStringStream.str() + " ms.";
 
 	RenderText(shaderForRendering, AnchorPosition::TopRight, meshOnGPU, deltaTimeString, deltaTimeTextPosition, rootUIRectIndex);
+}
+
+bool CurrentlyGeneratingAChunk(std::vector<std::future<void>>& chunkGenerationFutures) {
+
+	for (auto& curChunkGenerationFuture : chunkGenerationFutures)
+	{
+		if (curChunkGenerationFuture.valid()) {
+			if (curChunkGenerationFuture.wait_for(std::chrono::milliseconds(0)) != std::future_status::ready) {
+				return true;
+			}
+		}
+	}
+
+	return false;
 }
 
 int main() {
@@ -403,8 +419,10 @@ int main() {
 	{
 		LODLevelAndChunksMaxSizeInVoxels[i] /= unsigned int(pow(2, i));
 		numBucketsPerLOD[i] *= 6;
-	}
-	
+		numBucketsPerLOD[i] += 100;
+	}	
+
+	numBucketsPerLOD[3] = (totalNumChunks * 6);
 
 	//unsigned int numVoxelDatasPerBucket = (chunkSizeInVoxels.x / 2) * (chunkSizeInVoxels.y / 2) * (chunkSizeInVoxels.z / 2);
 	unsigned int numVoxelDatasPerBucket = (chunkSizeInVoxels.x / 2) * (chunkSizeInVoxels.y / 2) * (chunkSizeInVoxels.z / 2);
@@ -436,6 +454,20 @@ int main() {
 	GenerateChunksAndUploadTo_GPUAndAddToIndirectRenderCommandVectorOn_CPU(worldSizeInChunks, chunkSizeInVoxels, chunksLODLevel, voxelsDataPool, chunksPerFaceIndirectDrawCommands, chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas, chunksVoxelsDataPoolMetadatas, cameraTransform.position, chunkGenerationFutures);
 
 	chunksPerFaceIndirectDrawCommands.GPU_InitCommandBuffer();
+
+	for (auto& future : chunkGenerationFutures)
+	{
+		try {
+			if (future.valid())
+				future.get();
+		}
+		catch (std::future_error& e) {
+			std::cout << "future_error: " << e.code() << " - " << e.what() << "\n";
+		}
+
+	}
+	chunkGenerationFutures.clear();
+
 
 	// Todo 1 : LODs.
 	// Todo 2 : Frustum Culling.
@@ -505,72 +537,93 @@ int main() {
 				cameraTransform.position -= cameraTransform.worldUp * moveSpeed * deltaTime;
 			}
 
-			std::vector<std::pair<Vector3Int, int>> newChunkLODLevels;
-			CheckChunksForLODChanges(chunksLODLevel, cameraTransform.position, chunkSizeInVoxels, worldSizeInChunks, newChunkLODLevels);
+			if (!CurrentlyGeneratingAChunk(chunkGenerationFutures)) {
 
-			if (!newChunkLODLevels.empty()) {
-
-				Vector3 currentCameraChunkPosition = Vector3(int(cameraTransform.position.x / (chunkSizeInVoxels.x)), 0.0, int(cameraTransform.position.z / (chunkSizeInVoxels.z)));
-				currentCameraChunkPosition *= chunkSizeInVoxels;
-
-				Vector3 halfChunkSize = Vector3(chunkSizeInVoxels / 2);
-
-				auto fnSimplex = FastNoise::New<FastNoise::Simplex>();
-				auto fnFractal = FastNoise::New<FastNoise::FractalFBm>();
-
-				fnFractal->SetSource(fnSimplex);
-				fnFractal->SetOctaveCount(5);
-
-				for (unsigned int i = 0; i < newChunkLODLevels.size(); i++)
+				for (auto& future : chunkGenerationFutures)
 				{
-					Vector3Int curChunkIndex = newChunkLODLevels[i].first;
-					unsigned int flattenedChunkIndex = GetFlattenedChunkIndexForChunksVoxelsDataPoolMetadatas(worldSizeInChunks, curChunkIndex);
+					try {
+						if (future.valid())
+							future.get();
+					}
+					catch (std::future_error& e) {
+						std::cout << "future_error: " << e.code() << " - " << e.what() << "\n";
+					}
 
-					int previousLODLevelOfCurChunk = chunksLODLevel[flattenedChunkIndex];
-
-					unsigned int flattenedChunkIndexForVoxelsDataPoolMetadatas = GetFlattenedChunkIndexForChunksVoxelsDataPoolMetadatas(worldSizeInChunks, curChunkIndex);
-
-					unsigned int chunksCurrentTopFaceBucketIndex = chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas[flattenedChunkIndexForVoxelsDataPoolMetadatas].topFaceVoxelsDataPoolMetadata.voxelDataBucketOffsetIntoMegaArrayIndex;
-					voxelsDataPool.MakeBucketAFreeBucket(chunksCurrentTopFaceBucketIndex, previousLODLevelOfCurChunk);
-
-					unsigned int chunksCurrentBottomFaceBucketIndex = chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas[flattenedChunkIndexForVoxelsDataPoolMetadatas].bottomFaceVoxelsDataPoolMetadata.voxelDataBucketOffsetIntoMegaArrayIndex;
-					voxelsDataPool.MakeBucketAFreeBucket(chunksCurrentBottomFaceBucketIndex, previousLODLevelOfCurChunk);
-					
-					unsigned int chunksCurrentFrontFaceBucketIndex = chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas[flattenedChunkIndexForVoxelsDataPoolMetadatas].frontFaceVoxelsDataPoolMetadata.voxelDataBucketOffsetIntoMegaArrayIndex;
-					voxelsDataPool.MakeBucketAFreeBucket(chunksCurrentFrontFaceBucketIndex, previousLODLevelOfCurChunk);
-					
-					unsigned int chunksCurrentBackFaceBucketIndex = chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas[flattenedChunkIndexForVoxelsDataPoolMetadatas].backFaceVoxelsDataPoolMetadata.voxelDataBucketOffsetIntoMegaArrayIndex;
-					voxelsDataPool.MakeBucketAFreeBucket(chunksCurrentBackFaceBucketIndex, previousLODLevelOfCurChunk);
-					
-					unsigned int chunksCurrentLeftFaceBucketIndex = chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas[flattenedChunkIndexForVoxelsDataPoolMetadatas].leftFaceVoxelsDataPoolMetadata.voxelDataBucketOffsetIntoMegaArrayIndex;
-					voxelsDataPool.MakeBucketAFreeBucket(chunksCurrentLeftFaceBucketIndex, previousLODLevelOfCurChunk);
-					
-					unsigned int chunksCurrentRightFaceBucketIndex = chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas[flattenedChunkIndexForVoxelsDataPoolMetadatas].rightFaceVoxelsDataPoolMetadata.voxelDataBucketOffsetIntoMegaArrayIndex;
-					voxelsDataPool.MakeBucketAFreeBucket(chunksCurrentRightFaceBucketIndex, previousLODLevelOfCurChunk);
 				}
+				chunkGenerationFutures.clear();
 
-				for (unsigned int i = 0; i < newChunkLODLevels.size(); i++)
-				{
-					//GenerateChunkAndUploadTo_GPUAndAddToIndirectRenderCommandVectorOn_CPU(newChunkLODLevels[i].first, chunksLODLevel, fnFractal, currentCameraChunkPosition, halfChunkSize, worldSizeInChunks, chunkSizeInVoxels, voxelsDataPool, chunksPerFaceIndirectDrawCommands, chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas, chunksVoxelsDataPoolMetadatas, cameraTransform.position);
+				std::vector<std::pair<Vector3Int, int>> newChunkLODLevels;
+				CheckChunksForLODChanges(chunksLODLevel, cameraTransform.position, chunkSizeInVoxels, worldSizeInChunks, newChunkLODLevels);
 
-					chunkGenerationFutures.push_back(std::async(
-						std::launch::async,
-						GenerateChunkAndUploadTo_GPUAndAddToIndirectRenderCommandVectorOn_CPU,
-						newChunkLODLevels[i].first,
-						std::ref(chunksLODLevel),
-						fnFractal,
-						currentCameraChunkPosition,
-						halfChunkSize,
-						worldSizeInChunks,
-						chunkSizeInVoxels,
-						std::ref(voxelsDataPool),
-						std::ref(chunksPerFaceIndirectDrawCommands),
-						std::ref(chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas),
-						std::ref(chunksVoxelsDataPoolMetadatas),
-						cameraTransform.position));
 
+				unsigned int numLOD0 = 0;
+				unsigned int numLOD1 = 0;
+				unsigned int numLOD2 = 0;
+				unsigned int numLOD3 = 0;
+
+				if (!newChunkLODLevels.empty()) {
+
+					Vector3 currentCameraChunkPosition = Vector3(int(cameraTransform.position.x / (chunkSizeInVoxels.x)), 0.0, int(cameraTransform.position.z / (chunkSizeInVoxels.z)));
+					currentCameraChunkPosition *= chunkSizeInVoxels;
+
+					Vector3 halfChunkSize = Vector3(chunkSizeInVoxels / 2);
+
+					auto fnSimplex = FastNoise::New<FastNoise::Simplex>();
+					auto fnFractal = FastNoise::New<FastNoise::FractalFBm>();
+
+					fnFractal->SetSource(fnSimplex);
+					fnFractal->SetOctaveCount(5);
+
+					for (unsigned int i = 0; i < newChunkLODLevels.size(); i++)
+					{
+						Vector3Int curChunkIndex = newChunkLODLevels[i].first;
+						unsigned int flattenedChunkIndex = GetFlattenedChunkIndexForChunksVoxelsDataPoolMetadatas(worldSizeInChunks, curChunkIndex);
+
+						int previousLODLevelOfCurChunk = chunksLODLevel[flattenedChunkIndex];
+
+
+						unsigned int chunksCurrentTopFaceBucketIndex = chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas[flattenedChunkIndex].topFaceVoxelsDataPoolMetadata.voxelDataBucketOffsetIntoMegaArrayIndex;
+						voxelsDataPool.MakeBucketAFreeBucket(chunksCurrentTopFaceBucketIndex, previousLODLevelOfCurChunk);
+
+						unsigned int chunksCurrentBottomFaceBucketIndex = chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas[flattenedChunkIndex].bottomFaceVoxelsDataPoolMetadata.voxelDataBucketOffsetIntoMegaArrayIndex;
+						voxelsDataPool.MakeBucketAFreeBucket(chunksCurrentBottomFaceBucketIndex, previousLODLevelOfCurChunk);
+
+						unsigned int chunksCurrentFrontFaceBucketIndex = chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas[flattenedChunkIndex].frontFaceVoxelsDataPoolMetadata.voxelDataBucketOffsetIntoMegaArrayIndex;
+						voxelsDataPool.MakeBucketAFreeBucket(chunksCurrentFrontFaceBucketIndex, previousLODLevelOfCurChunk);
+
+						unsigned int chunksCurrentBackFaceBucketIndex = chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas[flattenedChunkIndex].backFaceVoxelsDataPoolMetadata.voxelDataBucketOffsetIntoMegaArrayIndex;
+						voxelsDataPool.MakeBucketAFreeBucket(chunksCurrentBackFaceBucketIndex, previousLODLevelOfCurChunk);
+
+						unsigned int chunksCurrentLeftFaceBucketIndex = chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas[flattenedChunkIndex].leftFaceVoxelsDataPoolMetadata.voxelDataBucketOffsetIntoMegaArrayIndex;
+						voxelsDataPool.MakeBucketAFreeBucket(chunksCurrentLeftFaceBucketIndex, previousLODLevelOfCurChunk);
+
+						unsigned int chunksCurrentRightFaceBucketIndex = chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas[flattenedChunkIndex].rightFaceVoxelsDataPoolMetadata.voxelDataBucketOffsetIntoMegaArrayIndex;
+						voxelsDataPool.MakeBucketAFreeBucket(chunksCurrentRightFaceBucketIndex, previousLODLevelOfCurChunk);
+					}
+
+					for (int i = 0; i < newChunkLODLevels.size(); i++)
+					{
+						chunkGenerationFutures.push_back(std::async(
+							std::launch::async,
+							DEBUG_GenerateChunkAndUploadTo_GPUAndAddToIndirectRenderCommandVectorOn_CPU,
+							newChunkLODLevels[i].first,
+							std::ref(chunksLODLevel),
+							newChunkLODLevels[i].second,
+							fnFractal,
+							currentCameraChunkPosition,
+							halfChunkSize,
+							worldSizeInChunks,
+							chunkSizeInVoxels,
+							std::ref(voxelsDataPool),
+							std::ref(chunksPerFaceIndirectDrawCommands),
+							std::ref(chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas),
+							std::ref(chunksVoxelsDataPoolMetadatas),
+							cameraTransform.position));
+					}
 				}
 			}
+
+
 		}
 		else {
 			glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);

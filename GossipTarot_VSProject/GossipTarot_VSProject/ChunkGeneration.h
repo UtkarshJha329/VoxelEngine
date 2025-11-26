@@ -1,6 +1,7 @@
 #pragma once
 
 #include <utility>
+#include <atomic>
 #include <future>
 #include <omp.h>
 
@@ -90,6 +91,47 @@ void GenerateChunkAndUploadTo_GPUAndAddToIndirectRenderCommandVectorOn_CPU(const
 			chunksVoxelsDataPoolMetadata.GPU_UploadChunkVoxelsDataPoolMetadatasToTheGPU(flattenedChunkIndexForVoxelsDataPoolMetadatas);
 		}
 	}
+}
+
+void GenerateChunkWithSpecificLODAndUploadTo_GPUAndAddToIndirectRenderCommandVectorOn_CPU(const Vector3Int& chunkIndex, std::vector<int>& chunksCurrentLODLevel, const unsigned int& wantChunkLODLevel, FastNoise::SmartNode<FastNoise::FractalFBm> fnFractal, const Vector3& currentCameraChunkPosition, const Vector3& halfChunkSize, const Vector3Int& worldSizeInChunks, const Vector3Int& chunkSizeInVoxels, VoxelsDataPool& voxelsDataPool, ChunksPerFaceIndirectDrawCommands& chunksPerFaceIndirectDrawCommands, std::vector<ChunkVoxelsDataPoolMetadata>& chunksVoxelsDataPoolMetadatas, ChunksVoxelsDataPoolMetadata& chunksVoxelsDataPoolMetadata, const Vector3& cameraPosition) {
+
+	int i = chunkIndex.x;
+	int j = chunkIndex.y;
+	int k = chunkIndex.z;
+
+	{
+		unsigned int flattenedChunkIndex = GetFlattenedChunkIndexForChunksVoxelsDataPoolMetadatas(worldSizeInChunks, chunkIndex);
+
+		chunksCurrentLODLevel[flattenedChunkIndex] = wantChunkLODLevel;
+
+		std::vector<float> noiseOutput(chunkSizeInVoxels.x * chunkSizeInVoxels.z);
+
+		Vector3Int chunkStartWorldPos = Vector3Int{ i * chunkSizeInVoxels.x, j * chunkSizeInVoxels.y, k * chunkSizeInVoxels.z };
+		fnFractal->GenUniformGrid2D(noiseOutput.data(), chunkStartWorldPos.x, chunkStartWorldPos.z, chunkSizeInVoxels.x, chunkSizeInVoxels.z, 0.002f, 1337);
+
+
+		unsigned int flattenedChunkIndexForVoxelsDataPoolMetadatas = GetFlattenedChunkIndexForChunksVoxelsDataPoolMetadatas(worldSizeInChunks, chunkIndex);
+
+		chunksVoxelsDataPoolMetadatas[flattenedChunkIndexForVoxelsDataPoolMetadatas].packedChunkIndex = chunkIndex.x + (chunkIndex.y << 7) + (chunkIndex.z << 14) + (wantChunkLODLevel << 21);
+
+		GenerateChunkVoxelPositionsOnGPUAsSSBOAsTriangleWithVoxelDataPoolForIndirectDrawCommands(noiseOutput, chunkIndex, chunkSizeInVoxels, worldSizeInChunks, wantChunkLODLevel, voxelsDataPool, chunksVoxelsDataPoolMetadatas[flattenedChunkIndexForVoxelsDataPoolMetadatas]);
+		//CPU_WriteChunkDataToDrawCommand(chunksVoxelsDataPoolMetadatas[flattenedChunkIndexForVoxelsDataPoolMetadatas], chunksPerFaceIndirectDrawCommands);
+
+		chunksVoxelsDataPoolMetadata.GPU_UploadChunkVoxelsDataPoolMetadatasToTheGPU(flattenedChunkIndexForVoxelsDataPoolMetadatas);
+	}
+}
+
+unsigned int numChunksWithLOD3Created = 0;
+void DEBUG_GenerateChunkAndUploadTo_GPUAndAddToIndirectRenderCommandVectorOn_CPU(const Vector3Int& chunkIndex, std::vector<int>& chunksLODLevel, const unsigned int& wantChunkLODLevel, FastNoise::SmartNode<FastNoise::FractalFBm> fnFractal, const Vector3& currentCameraChunkPosition, const Vector3& halfChunkSize, const Vector3Int& worldSizeInChunks, const Vector3Int& chunkSizeInVoxels, VoxelsDataPool& voxelsDataPool, ChunksPerFaceIndirectDrawCommands& chunksPerFaceIndirectDrawCommands, std::vector<ChunkVoxelsDataPoolMetadata>& chunksVoxelsDataPoolMetadatas, ChunksVoxelsDataPoolMetadata& chunksVoxelsDataPoolMetadata, const Vector3& cameraPosition) {
+
+	GenerateChunkWithSpecificLODAndUploadTo_GPUAndAddToIndirectRenderCommandVectorOn_CPU(chunkIndex, chunksLODLevel, wantChunkLODLevel, fnFractal, currentCameraChunkPosition, halfChunkSize, worldSizeInChunks, chunkSizeInVoxels, voxelsDataPool, chunksPerFaceIndirectDrawCommands, chunksVoxelsDataPoolMetadatas, chunksVoxelsDataPoolMetadata, cameraPosition);
+
+	//unsigned int flattenedChunkIndex = GetFlattenedChunkIndexForChunksVoxelsDataPoolMetadatas(worldSizeInChunks, chunkIndex);
+	//if (chunksLODLevel[flattenedChunkIndex] == 3) {
+	//	numChunksWithLOD3Created++;
+	//	std::cout << "Created chunk with LOD level 3! Total number : " << numChunksWithLOD3Created << std::endl;
+	//}
+
 }
 
 void GenerateChunksAndUploadTo_GPUAndAddToIndirectRenderCommandVectorOn_CPU(const Vector3Int& worldSizeInChunks, const Vector3Int& chunkSizeInVoxels, std::vector<int>& chunksLODLevel, VoxelsDataPool& voxelsDataPool, ChunksPerFaceIndirectDrawCommands& chunksPerFaceIndirectDrawCommands, std::vector<ChunkVoxelsDataPoolMetadata>& chunksVoxelsDataPoolMetadatas, ChunksVoxelsDataPoolMetadata& chunksVoxelsDataPoolMetadata, const Vector3& cameraPosition, std::vector<std::future<void>>& chunkGenerationFutures) {
