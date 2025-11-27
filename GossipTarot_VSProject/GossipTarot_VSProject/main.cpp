@@ -525,9 +525,12 @@ int main() {
 
 			Vector3 cameraFront = Vector3{ 0.0f, 0.0f, 1.0f };
 
+			//glm::quat rotQuat = glm::quat(glm::radians(cameraTransform.rotation));
+			//Mat4x4 rotationMatrix = glm::mat4_cast(rotQuat);
+			//cameraFront = glm::vec3(rotationMatrix * glm::vec4(cameraFront, 1.0f));
+
 			glm::quat rotQuat = glm::quat(glm::radians(cameraTransform.rotation));
-			Mat4x4 rotationMatrix = glm::mat4_cast(rotQuat);
-			cameraFront = glm::vec3(rotationMatrix * glm::vec4(cameraFront, 1.0f));
+			cameraFront = normalize(rotQuat * glm::vec3(0, 0, 1));
 
 			mainCamera.SetCameraDirectionVectors(Transform::worldUp, cameraFront);
 

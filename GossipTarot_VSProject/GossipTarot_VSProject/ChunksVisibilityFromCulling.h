@@ -7,35 +7,22 @@
 
 #include "Camera.h"
 
-struct Plane
-{
+struct Plane {
 	glm::vec3 normal;
-	float distFromOriginToPlane;
-
-	Plane() = default;
-
-	Plane(const glm::vec3& p1, const glm::vec3& norm)
-		: normal(glm::normalize(norm)),
-		distFromOriginToPlane(glm::dot(normal, p1))
-	{
-	}
-
-	float getSignedDistanceToPlane(const glm::vec3& point) const
-	{
-		return glm::dot(normal, point) - distFromOriginToPlane;
-	}
+	float _pad0;            // padding
+	glm::vec3 pointOnPlane;
+	float _pad1;            // padding
 };
 
 struct Frustum
 {
-	Plane topFace;
-	Plane bottomFace;
+	Plane nearPlane;
 
-	Plane rightFace;
-	Plane leftFace;
+	Plane rightPlane;
+	Plane leftPlane;
 
-	Plane farFace;
-	Plane nearFace;
+	Plane topPlane;
+	Plane bottomPlane;
 };
 
 struct ChunksVisiblityFromCulling {
@@ -56,7 +43,7 @@ public:
 
 	ChunksVisiblityFromCulling(unsigned int totalNumChunks, unsigned int _gpu_cameraFrustumBufferBindingPoint, unsigned int _gpu_chunksVisibilityDataBufferBindingPoint) {
 
-		chunksVisibilityData.resize(totalNumChunks, 1);
+		chunksVisibilityData.resize(totalNumChunks, 0);
 
 		gpu_chunksVisibilityDataBufferBindingPoint = _gpu_chunksVisibilityDataBufferBindingPoint;
 
@@ -81,7 +68,7 @@ public:
 
 		glNamedBufferStorage(gpu_cameraFrustumBufferID,
 			sizeof(Frustum),
-			(const void*) &cameraFrustum,
+			(const void*)&cameraFrustum,
 			GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
 
 		void* mappedPointerToBufferB = glMapNamedBufferRange(
@@ -108,21 +95,28 @@ public:
 		float zFar = camera.farPlaneDistance;
 		float fovY = glm::radians(camera.fovInDegrees);
 
-		const float halfVSide = zFar * tanf(fovY * .5f);
+		const float halfVSide = zFar * tanf(fovY);
 		const float halfHSide = halfVSide * aspect;
-		const glm::vec3 frontMultFar = zFar * camera.cameraPointingDirection;
 
-		cameraFrustum.nearFace = { cameraPosition + zNear * camera.cameraPointingDirection, camera.cameraPointingDirection };
-		cameraFrustum.farFace = { cameraPosition + frontMultFar, -camera.cameraPointingDirection };
-		cameraFrustum.rightFace = { cameraPosition,
-								glm::cross(frontMultFar - camera.cameraRight * halfHSide, camera.cameraUp) };
-		cameraFrustum.leftFace = { cameraPosition,
-								glm::cross(camera.cameraUp,frontMultFar + camera.cameraRight * halfHSide) };
-		cameraFrustum.topFace = { cameraPosition,
-								glm::cross(camera.cameraRight, frontMultFar - camera.cameraUp * halfVSide) };
-		cameraFrustum.bottomFace = { cameraPosition,
-								glm::cross(frontMultFar + camera.cameraUp * halfVSide, camera.cameraRight) };
+		cameraFrustum.nearPlane = { glm::normalize(camera.cameraPointingDirection), 0.0f, cameraPosition + (camera.cameraPointingDirection * zNear), 0.0f };
 
+		Vector3 vectorInRightPlane = zFar * camera.cameraPointingDirection + halfHSide * camera.cameraRight;
+		Vector3 normalOfRightPlane = glm::cross(camera.cameraUp, vectorInRightPlane);
+
+		Vector3 vectorInLeftPlane = zFar * camera.cameraPointingDirection - halfHSide * camera.cameraRight;
+		Vector3 normalOfleftPlane = glm::cross(vectorInLeftPlane, camera.cameraUp);
+
+		cameraFrustum.rightPlane = { glm::normalize(normalOfRightPlane), 0.0f, cameraPosition, 0.0f };
+		cameraFrustum.leftPlane = { glm::normalize(normalOfleftPlane), 0.0f, cameraPosition, 0.0f };
+
+		Vector3 vectorInTopPlane = zFar * camera.cameraPointingDirection + halfVSide * camera.cameraUp;
+		Vector3 normalOfTopPlane = glm::cross(vectorInTopPlane, camera.cameraRight);
+
+		Vector3 vectorInBottomPlane = zFar * camera.cameraPointingDirection - halfVSide * camera.cameraUp;
+		Vector3 normalOfBottomPlane = glm::cross(camera.cameraRight, vectorInBottomPlane);
+
+		cameraFrustum.topPlane = { glm::normalize(normalOfTopPlane), 0.0f, cameraPosition, 0.0f };
+		cameraFrustum.bottomPlane = { glm::normalize(normalOfBottomPlane), 0.0f, cameraPosition, 0.0f };
 
 		memcpy(gpu_cameraFrustumPointer, &cameraFrustum, sizeof(Frustum));
 	}

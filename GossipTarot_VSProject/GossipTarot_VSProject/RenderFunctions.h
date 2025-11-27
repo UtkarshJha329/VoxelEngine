@@ -178,7 +178,18 @@ void RenderMeshOnGPUWithDrawElementsIndirectCommandsWithComputeShaderAndCullingC
 
 
 	glUseProgram(cullingComputeShader.shaderProgramID);
-	//glBindBufferBase(GL_SHADER_STORAGE_BUFFER, chunksVisibilityFromCulling.gpu_chunksVisibilityDataBufferBindingPoint, chunksVisibilityFromCulling.gpu_chunksVisibilityDataBufferID);
+
+	{
+		int mainCameraPositionLoc = glGetUniformLocation(cullingComputeShader.shaderProgramID, "cameraPosition");
+		glUniform3fv(mainCameraPositionLoc, 1, glm::value_ptr(cameraTransform.position));
+
+		int mainCameraPointingDirectionLoc = glGetUniformLocation(cullingComputeShader.shaderProgramID, "cameraPointingDirectionNormalised");
+		glUniform3fv(mainCameraPointingDirectionLoc, 1, glm::value_ptr(mainCamera.cameraPointingDirection));
+
+		int worldSizeInChunksLoc = glGetUniformLocation(cullingComputeShader.shaderProgramID, "worldSizeInChunks");
+		glUniform3fv(worldSizeInChunksLoc, 1, glm::value_ptr(worldSizeInChunks));
+	}
+
 	chunksVisibilityFromCulling.UpdateCameraFrustumOnCPUAndGPU(mainCamera, cameraTransform.position);
 	chunksVisibilityFromCulling.GPU_BindBuffersNeededForChunksVisibilityDataCalculation();
 

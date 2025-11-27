@@ -28,7 +28,7 @@ public:
 		nearPlaneDistance = _nearPlaneDistance;
 		farPlaneDistance = _farPlaneDistance;
 
-		projectionMatrix = glm::perspective(glm::radians(fovInDegrees), viewport.dimensions.x / viewport.dimensions.y, nearPlaneDistance, farPlaneDistance);
+		projectionMatrix = glm::perspective(glm::radians(fovInDegrees), viewport.GetAspectRatio(), nearPlaneDistance, farPlaneDistance);
 	}
 
 	void SetProjectionMatrixToOrthographicProjection(float _nearPlaneDistance, float _farPlaneDistance) {
@@ -47,9 +47,6 @@ public:
 	void SetCameraDirectionVectors(const Vector3& worldUp, const Vector3& cameraFacingDirection) {
 
 		cameraPointingDirection = cameraFacingDirection;
-
-		//cameraRight = glm::normalize(glm::cross(worldUp, cameraPointingDirection));
-		//cameraUp = glm::normalize(glm::cross(cameraPointingDirection, cameraRight));
 
 		cameraRight = glm::normalize(glm::cross(cameraPointingDirection, worldUp));
 		cameraUp = glm::normalize(glm::cross(cameraRight, cameraPointingDirection));

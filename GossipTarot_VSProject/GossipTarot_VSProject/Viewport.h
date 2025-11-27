@@ -9,4 +9,8 @@ class Viewport {
 public:
 	Vector2 dimensions;
 	Texture viewportTexture;
+
+	float GetAspectRatio() {
+		return dimensions.x / dimensions.y;
+	}
 };
