@@ -47,13 +47,15 @@ uniform vec3 worldSizeInChunks;
 
 void WriteFaceDataToDrawCommand(in uint packedChunkIndex, inout FaceVoxelsDataPoolMetadata faceVoxelsDataPoolMetadata){
 
-	uint currentChunkIndirectDrawIndex = atomicAdd(drawCount, 1);
+	if (faceVoxelsDataPoolMetadata.numVoxelDataInBucket > 0) {
+		uint currentChunkIndirectDrawIndex = atomicAdd(drawCount, 1);
 
-	chunksDrawElementsIndirectCommands[currentChunkIndirectDrawIndex].count = faceVoxelsDataPoolMetadata.numVoxelDataInBucket;
-	chunksDrawElementsIndirectCommands[currentChunkIndirectDrawIndex].instanceCount = 1;
-	chunksDrawElementsIndirectCommands[currentChunkIndirectDrawIndex].firstIndex = 0;
-	chunksDrawElementsIndirectCommands[currentChunkIndirectDrawIndex].baseVertex = int(faceVoxelsDataPoolMetadata.voxelDataBucketOffsetIntoMegaArrayIndex);
-	chunksDrawElementsIndirectCommands[currentChunkIndirectDrawIndex].baseInstance = packedChunkIndex;
+		chunksDrawElementsIndirectCommands[currentChunkIndirectDrawIndex].count = faceVoxelsDataPoolMetadata.numVoxelDataInBucket;
+		chunksDrawElementsIndirectCommands[currentChunkIndirectDrawIndex].instanceCount = 1;
+		chunksDrawElementsIndirectCommands[currentChunkIndirectDrawIndex].firstIndex = 0;
+		chunksDrawElementsIndirectCommands[currentChunkIndirectDrawIndex].baseVertex = int(faceVoxelsDataPoolMetadata.voxelDataBucketOffsetIntoMegaArrayIndex);
+		chunksDrawElementsIndirectCommands[currentChunkIndirectDrawIndex].baseInstance = packedChunkIndex;
+	}
 }
 
 void main(void) {
@@ -80,22 +82,22 @@ void main(void) {
 	
 	bool drawAllFaces = false;
 
-	if (topFaceDot <= 0.0f || drawAllFaces) {
+	if ((topFaceDot <= 0.52f) || drawAllFaces) {
 		WriteFaceDataToDrawCommand(chunksVoxelsDataPoolMetadatas[currentChunkIndex].packedChunkIndex, chunksVoxelsDataPoolMetadatas[currentChunkIndex].topFaceVoxelsDataPoolMetadata);
 	}
-	if (bottomFaceDot <= 0.0f || drawAllFaces) {
+	if ((bottomFaceDot <= 0.52f) || drawAllFaces) {
 		WriteFaceDataToDrawCommand(chunksVoxelsDataPoolMetadatas[currentChunkIndex].packedChunkIndex, chunksVoxelsDataPoolMetadatas[currentChunkIndex].bottomFaceVoxelsDataPoolMetadata);
 	}
-	if (leftFaceDot <= 0.0f || drawAllFaces) {
+	if ((leftFaceDot <= 0.52f) || drawAllFaces) {
 		WriteFaceDataToDrawCommand(chunksVoxelsDataPoolMetadatas[currentChunkIndex].packedChunkIndex, chunksVoxelsDataPoolMetadatas[currentChunkIndex].leftFaceVoxelsDataPoolMetadata);
 	}
-	if (rightFaceDot <= 0.0f || drawAllFaces) {
+	if ((rightFaceDot <= 0.52f) || drawAllFaces) {
 		WriteFaceDataToDrawCommand(chunksVoxelsDataPoolMetadatas[currentChunkIndex].packedChunkIndex, chunksVoxelsDataPoolMetadatas[currentChunkIndex].rightFaceVoxelsDataPoolMetadata);
 	}
-	if (frontFaceDot <= 0.0f || drawAllFaces) {
+	if ((frontFaceDot <= 0.52f) || drawAllFaces) {
 		WriteFaceDataToDrawCommand(chunksVoxelsDataPoolMetadatas[currentChunkIndex].packedChunkIndex, chunksVoxelsDataPoolMetadatas[currentChunkIndex].frontFaceVoxelsDataPoolMetadata);
 	}
-	if (backFaceDot <= 0.0f || drawAllFaces) {
+	if ((backFaceDot <= 0.52f) || drawAllFaces) {
 		WriteFaceDataToDrawCommand(chunksVoxelsDataPoolMetadatas[currentChunkIndex].packedChunkIndex, chunksVoxelsDataPoolMetadatas[currentChunkIndex].backFaceVoxelsDataPoolMetadata);
 	}
 }
