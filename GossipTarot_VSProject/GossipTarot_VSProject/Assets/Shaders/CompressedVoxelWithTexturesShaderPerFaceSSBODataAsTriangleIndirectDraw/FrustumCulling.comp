@@ -1,0 +1,104 @@
+
+#version 460 core
+
+layout (local_size_x = 512) in;
+
+struct Plane {
+    vec3 normal;
+    float pointOnPlane;
+};
+
+struct Frustum {
+    Plane topFace;
+    Plane bottomFace;
+
+    Plane rightFace;
+    Plane leftFace;
+
+    Plane farFace;
+    Plane nearFace;
+};
+
+struct ChunkAABB {
+    vec3 centre;
+    vec3 extents;
+};
+
+layout (binding = 6, std430) buffer CameraFrustumData {
+	Frustum cameraFrustumData[];
+};
+
+layout (binding = 7, std430) buffer ChunksVisibilityData {
+	uint chunksVisibilityData[];
+};
+
+uniform vec3 cameraPointingDirectionNormalised;
+uniform vec3 worldSizeInChunks;
+
+float DistanceOfPointFromPlane(vec3 point, Plane plane){
+    
+    return (dot(plane.normal, (point - plane.pointOnPlane)) / length(plane.normal));
+
+}
+
+bool DoesChunkLieOnOrInFrustum(vec3 chunkPos, vec3 chunkSizeInVoxels, Frustum curFrustum){
+    
+    vec3 a = chunkPos;
+    vec3 b = vec3(chunkPos.x + chunkSizeInVoxels.x, chunkPos.y, chunkPos.z);
+    vec3 c = vec3(chunkPos.x, chunkPos.y, chunkPos.z + chunkSizeInVoxels.z);
+    vec3 d = vec3(chunkPos.x + chunkSizeInVoxels.x, chunkPos.y, chunkPos.z + chunkSizeInVoxels.x);
+
+    vec3 e = chunkPos + vec3(0, chunkSizeInVoxels.y, 0);
+    vec3 f = vec3(chunkPos.x + chunkSizeInVoxels.x, chunkPos.y + chunkSizeInVoxels.y, chunkPos.z);
+    vec3 g = vec3(chunkPos.x, chunkPos.y + chunkSizeInVoxels.y, chunkPos.z + chunkSizeInVoxels.z);
+    vec3 h = vec3(chunkPos.x + chunkSizeInVoxels.x, chunkPos.y + chunkSizeInVoxels.y, chunkPos.z + chunkSizeInVoxels.x);
+
+    vec3 chunkBoundingPoints[8] = {a, b, c, d, e, f, g, h};
+
+    for(int i = 0; i < 8; i++){
+        if (DistanceOfPointFromPlane(chunkBoundingPoints[i], curFrustum.topFace) >= 0){
+            return true;
+        }
+        if (DistanceOfPointFromPlane(chunkBoundingPoints[i], curFrustum.bottomFace) >= 0){
+            return true;
+        }
+        if (DistanceOfPointFromPlane(chunkBoundingPoints[i], curFrustum.rightFace) >= 0){
+            return true;
+        }
+        if (DistanceOfPointFromPlane(chunkBoundingPoints[i], curFrustum.leftFace) >= 0){
+            return true;
+        }
+        if (DistanceOfPointFromPlane(chunkBoundingPoints[i], curFrustum.farFace) >= 0){
+            return true;
+        }
+        if (DistanceOfPointFromPlane(chunkBoundingPoints[i], curFrustum.nearFace) >= 0){
+            return true;
+        }
+    }
+    return false;
+}
+
+void main(void) {
+
+	if (gl_GlobalInvocationID.x >= (worldSizeInChunks.x * worldSizeInChunks.y * worldSizeInChunks.z)) {
+		return;
+	}
+
+    chunksVisibilityData[gl_GlobalInvocationID.x] = 0;
+}
+
+//    vec3 chunkSizeInVoxels = vec3(32.0, 32.0, 32.0);
+//    
+//    float chunkXIndex = mod(gl_GlobalInvocationID.x, worldSizeInChunks.x);
+//    float chunkYIndex = gl_GlobalInvocationID.x / (worldSizeInChunks.x * worldSizeInChunks.z);
+//    float chunkZIndex = mod(gl_GlobalInvocationID.x / worldSizeInChunks.x, worldSizeInChunks.z);
+//
+//    vec3 chunkPos = vec3(chunkXIndex, chunkYIndex, chunkZIndex) * chunkSizeInVoxels;
+//
+//    if (DoesChunkLieOnOrInFrustum(chunkPos, chunkSizeInVoxels, cameraFrustumData[0])){
+//        chunksVisibilityData[gl_GlobalInvocationID.x] = 1;
+//    } else {
+//        chunksVisibilityData[gl_GlobalInvocationID.x] = 0;
+//    }
+//
+

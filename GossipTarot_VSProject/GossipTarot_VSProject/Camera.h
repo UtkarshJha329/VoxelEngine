@@ -7,7 +7,7 @@ class Camera {
 public:
 	float fovInDegrees = 45.0f;
 	float nearPlaneDistance = 0.1f;
-	float farPlaneDistance = 1000.0f;
+	float farPlaneDistance = 10000.0f;
 	Viewport viewport;
 
 	Vector3 targetPosition;

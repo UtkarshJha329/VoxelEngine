@@ -47,6 +47,7 @@
     <None Include="Assets\Shaders\CompressedVoxelWithTexturesShaderPerFaceSSBODataAsTriangleIndirectDraw\VoxelWithTexturesShaderPerFaceSSBODataAsTriangleIndirectDraw.frag" />
     <None Include="Assets\Shaders\CompressedVoxelWithTexturesShaderPerFaceSSBODataAsTriangleIndirectDraw\VoxelWithTexturesShaderPerFaceSSBODataAsTriangleIndirectDraw.vert" />
     <None Include="Assets\Shaders\CompressedVoxelWithTexturesShaderPerFaceSSBODataAsTriangleIndirectDraw\VoxelWithTexturesShaderPerFaceSSBODataAsTriangleIndirectDraw.comp" />
+    <None Include="Assets\Shaders\CompressedVoxelWithTexturesShaderPerFaceSSBODataAsTriangleIndirectDraw\FrustumCulling.comp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="FileHandling.h">
@@ -131,6 +132,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="TSQueue.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ChunksVisibilityFromCulling.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

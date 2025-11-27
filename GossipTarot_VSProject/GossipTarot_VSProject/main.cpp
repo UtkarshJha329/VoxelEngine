@@ -37,6 +37,7 @@
 #include "BakedMeshData.h"
 #include "VoxelFunctions.h"
 #include "ChunkGeneration.h"
+#include "ChunksVisibilityFromCulling.h"
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
@@ -231,6 +232,17 @@ int main() {
 	voxelBackfaceCullingComputeShaderProgram.CreateShaderProgram(shaderForVoxelBackfaceCullingComputeShaderProgram);
 
 
+	Shader cullingComputeShader;
+	cullingComputeShader.shaderFilePath = "Assets/Shaders/CompressedVoxelWithTexturesShaderPerFaceSSBODataAsTriangleIndirectDraw/FrustumCulling.comp";
+	cullingComputeShader.shaderType = SHADER_TYPE::COMPUTE_SHADER;
+	cullingComputeShader.CreateShader();
+
+	std::vector<Shader> shaderForCullingComputeShaderProgram = { cullingComputeShader };
+	ShaderProgram cullingComputeShaderProgram;
+
+	cullingComputeShaderProgram.CreateShaderProgram(shaderForCullingComputeShaderProgram);
+
+
 	MeshOnCPU simpleQuadMeshCPU;
 	for (int i = 0; i < 20; i++)
 	{
@@ -264,7 +276,7 @@ int main() {
 
 	Camera mainCamera;
 	mainCamera.viewport.dimensions = { WINDOW_WIDTH, WINDOW_HEIGHT };
-	mainCamera.SetProjectionMatrixToPerspectiveProjection(45.0f, 0.1f, 10000.0f);
+	mainCamera.SetProjectionMatrixToPerspectiveProjection(mainCamera.fovInDegrees, mainCamera.nearPlaneDistance, mainCamera.farPlaneDistance);
 
 	Vector3 cameraFront = Vector3{ 0.0f, 0.0f, 1.0f };
 
@@ -468,8 +480,10 @@ int main() {
 	}
 	chunkGenerationFutures.clear();
 
+	unsigned int gpu_cameraFrustumDataBindingPoint = 6;
+	unsigned int gpu_chunksVisibilityFromCullingDataBindingPoint = 7;
+	ChunksVisiblityFromCulling chunksVisibilityFromCulling(totalNumChunks, gpu_cameraFrustumDataBindingPoint, gpu_chunksVisibilityFromCullingDataBindingPoint);
 
-	// Todo 1 : LODs.
 	// Todo 2 : Frustum Culling.
 	// Todo 3 : Block types/ block palette.
 	// Todo 4 : Binary Meshing.
@@ -635,7 +649,32 @@ int main() {
 
 
 		// Render World Geometry
-		RenderMeshOnGPUWithDrawElementsIndirectCommandsWithComputeShader(voxelVertexAndFragmentWithCameraWithTexturesPerFaceSSBODataAsTriangleIndirectDrawShaderProgram, voxelBackfaceCullingComputeShaderProgram, cameraTransform, mainCamera, modelTransform.GetTransformMatrix(), stickmanTextureIndex, worldSizeInChunks, commonChunkMeshOnGPU, chunksPerFaceIndirectDrawCommands, voxelsDataPool, chunksVoxelsDataPoolMetadatas);
+		//RenderMeshOnGPUWithDrawElementsIndirectCommandsWithComputeShader(
+		//	voxelVertexAndFragmentWithCameraWithTexturesPerFaceSSBODataAsTriangleIndirectDrawShaderProgram,
+		//	voxelBackfaceCullingComputeShaderProgram,
+		//	cameraTransform, mainCamera,
+		//	modelTransform.GetTransformMatrix(),
+		//	stickmanTextureIndex,
+		//	worldSizeInChunks,
+		//	commonChunkMeshOnGPU,
+		//	chunksPerFaceIndirectDrawCommands,
+		//	voxelsDataPool,
+		//	chunksVoxelsDataPoolMetadatas
+		//);
+
+		RenderMeshOnGPUWithDrawElementsIndirectCommandsWithComputeShaderAndCullingComputeShader(
+			voxelVertexAndFragmentWithCameraWithTexturesPerFaceSSBODataAsTriangleIndirectDrawShaderProgram,
+			voxelBackfaceCullingComputeShaderProgram,
+			cullingComputeShaderProgram, chunksVisibilityFromCulling,
+			cameraTransform, mainCamera,
+			modelTransform.GetTransformMatrix(),
+			stickmanTextureIndex,
+			worldSizeInChunks,
+			commonChunkMeshOnGPU,
+			chunksPerFaceIndirectDrawCommands,
+			voxelsDataPool,
+			chunksVoxelsDataPoolMetadatas
+		);
 
 
 
