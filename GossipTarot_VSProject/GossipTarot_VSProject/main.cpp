@@ -394,7 +394,7 @@ int main() {
 
 
 	// VVV LIMITED BY COMPRESSION TO INT IN PACKED CHUNK INDEX AND NUMBER OF COMPUTE THREADS DISPATCHED! Currently limited by each coordinate having 7 bits, i.e max 127 for each coord but with compute threads dispatched it is limited to __.
-	Vector3Int worldSizeInChunks = { 8, 2, 8 };
+	Vector3Int worldSizeInChunks = { 64, 16, 64 };
 	Vector3Int chunkSizeInVoxels = { 32, 32, 32 };
 
 	Vector3Int centreVoxelPositionInWorld = { (worldSizeInChunks.x * chunkSizeInVoxels.x) / 2, (worldSizeInChunks.y * chunkSizeInVoxels.y) / 2, (worldSizeInChunks.z * chunkSizeInVoxels.z) / 2 };
