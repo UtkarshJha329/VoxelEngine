@@ -4,7 +4,6 @@ uniform mat4 model;
 uniform mat4 view;
 uniform mat4 projection;
 
-uniform uint currentChunkVisibilityBufferIndex;
 uniform vec3 worldSizeInChunks;
 uniform vec3 cameraWorldVoxelPosition;
 
@@ -12,8 +11,14 @@ layout (binding = 2, std430) readonly buffer VoxelFaceAndPositionData {
     uint voxelFaceAndPositionData[];
 };
 
+
+layout (binding = 7, std430) buffer ChunksVisibilityData {
+	int chunksVisibilityData[];
+};
+
+
 out float distFromCamera;
-out vec2 texCoords;
+//out vec2 texCoords;
 out flat uint chunkFlattenedIndex;
 
 
@@ -125,8 +130,7 @@ void main()
     uint currentInstancePosition = voxelFaceAndPositionData[curVertexDataID];
 
 
-    ivec3 voxelLocalPosition = ivec3(0, 0, 0);
-
+    ivec3 voxelLocalPosition = ivec3(16, 16, 16);
 
 	uint packedChunkCoords = gl_BaseInstance;
 	uint chunkXIndex = (packedChunkCoords & maxChunkLocalCoord);
@@ -155,10 +159,15 @@ void main()
     vec3 vertexPosition = chunkPosition + (voxelLocalPosition) + (GetCurrentVertexBasedOnFaceIndex(curFace) * vec3(xScale, yScale, zScale));
 
     gl_Position = projection * view * model * vec4(vertexPosition, 1.0);
-    texCoords = GetCurrentTexCoordBasedOnVertexIDAndCurFace(curFace);
+//    texCoords = GetCurrentTexCoordBasedOnVertexIDAndCurFace(curFace);
 
-	uint currentChunkVisibilityBufferOffset = uint(worldSizeInChunks.x * worldSizeInChunks.y * worldSizeInChunks.z) * currentChunkVisibilityBufferIndex;
-	chunkFlattenedIndex = currentChunkVisibilityBufferOffset + uint(chunkYIndex * worldSizeInChunks.x * worldSizeInChunks.z + chunkZIndex * worldSizeInChunks.x + chunkXIndex);
+	chunkFlattenedIndex = uint(chunkYIndex * worldSizeInChunks.x * worldSizeInChunks.z + chunkZIndex * worldSizeInChunks.x + chunkXIndex);
 
 	distFromCamera = length(vertexPosition - cameraWorldVoxelPosition);
+
+	if (distFromCamera <= 32.0){
+		chunksVisibilityData[chunkFlattenedIndex] = 1;
+//        atomicAdd(chunksVisibilityData[chunkFlattenedIndex], 1);
+
+	}
 }

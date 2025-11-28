@@ -42,10 +42,9 @@ layout(binding = 5, std430) buffer MultiDrawIndirectDrawCount {
 };
 
 layout (binding = 7, std430) buffer ChunksVisibilityData {
-	uint chunksVisibilityData[];
+	int chunksVisibilityData[];
 };
 
-uniform uint currentChunkVisibilityBufferIndex;
 uniform vec3 cameraPointingDirectionNormalised;
 uniform vec3 worldSizeInChunks;
 
@@ -72,10 +71,8 @@ void main(void) {
 	if (gl_GlobalInvocationID.x >= (worldSizeInChunks.x * worldSizeInChunks.y * worldSizeInChunks.z)) {
 		return;
 	}
-
-	uint currentChunkVisibilityBufferOffset = uint(worldSizeInChunks.x * worldSizeInChunks.y * worldSizeInChunks.z) * currentChunkVisibilityBufferIndex;
 	
-	if (chunksVisibilityData[currentChunkVisibilityBufferOffset + gl_GlobalInvocationID.x] != 0) {	
+	if (chunksVisibilityData[gl_GlobalInvocationID.x] > 0) {	
 
 		uint currentChunkIndex = gl_GlobalInvocationID.x;
 

@@ -25,10 +25,9 @@ layout (binding = 6, std430) buffer CameraFrustumData {
 };
 
 layout (binding = 7, std430) buffer ChunksVisibilityData {
-	uint chunksVisibilityData[];
+	int chunksVisibilityData[];
 };
 
-uniform uint currentChunkVisibilityBufferIndex;
 uniform vec3 cameraPosition;
 uniform vec3 cameraPointingDirectionNormalised;
 uniform vec3 worldSizeInChunks;
@@ -89,12 +88,10 @@ void main(void) {
 
     vec3 chunkPos = vec3(chunkXIndex, chunkYIndex, chunkZIndex) * chunkSizeInVoxels;
 
-    uint currentChunkVisibilityBufferOffset = uint(worldSizeInChunks.x * worldSizeInChunks.y * worldSizeInChunks.z) * currentChunkVisibilityBufferIndex;
-
     if (DoesChunkLieOnOrInFrustum(chunkPos, chunkSizeInVoxels, cameraFrustumData)){
-        chunksVisibilityData[currentChunkVisibilityBufferOffset + gl_GlobalInvocationID.x] = 1;
+        chunksVisibilityData[gl_GlobalInvocationID.x] = 1;
     } else {
-        chunksVisibilityData[currentChunkVisibilityBufferOffset + gl_GlobalInvocationID.x] = 0;
+        chunksVisibilityData[gl_GlobalInvocationID.x] = 0;
     }
 }
 

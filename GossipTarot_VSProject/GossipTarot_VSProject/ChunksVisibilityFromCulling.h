@@ -35,25 +35,21 @@ public:
 
 	unsigned int gpu_chunksVisibilityDataBufferID;
 	unsigned int gpu_chunksVisibilityDataBufferBindingPoint;
-	unsigned int* gpu_chunksVisibilityDataBufferPointer;
-	std::vector<uint32_t> chunksVisibilityData;
+	int* gpu_chunksVisibilityDataBufferPointer;
+	std::vector<int> chunksVisibilityData;
 
 	Frustum cameraFrustum;
 
 
 	ChunksVisiblityFromCulling(unsigned int totalNumChunks, unsigned int _gpu_cameraFrustumBufferBindingPoint, unsigned int _gpu_chunksVisibilityDataBufferBindingPoint) {
 
-		chunksVisibilityData.resize(totalNumChunks * 2, 1);
-		//chunksVisibilityData.resize(totalNumChunks, 1);
-
-		std::cout << chunksVisibilityData.size() << std::endl;
-
+		chunksVisibilityData.resize(totalNumChunks, 1);
 
 		gpu_chunksVisibilityDataBufferBindingPoint = _gpu_chunksVisibilityDataBufferBindingPoint;
 
 		glCreateBuffers(1, &gpu_chunksVisibilityDataBufferID);
 
-		size_t sizeOfChunksVisibilityBufferInBytes = chunksVisibilityData.size() * sizeof(unsigned int);
+		size_t sizeOfChunksVisibilityBufferInBytes = chunksVisibilityData.size() * sizeof(int);
 
 		glNamedBufferStorage(gpu_chunksVisibilityDataBufferID,
 			sizeOfChunksVisibilityBufferInBytes,
@@ -64,7 +60,7 @@ public:
 			gpu_chunksVisibilityDataBufferID, 0, sizeOfChunksVisibilityBufferInBytes,
 			GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT
 		);
-		gpu_chunksVisibilityDataBufferPointer = reinterpret_cast<unsigned int*>(mappedPointerToBufferA);
+		gpu_chunksVisibilityDataBufferPointer = reinterpret_cast<int*>(mappedPointerToBufferA);
 
 
 		gpu_cameraFrustumBufferBindingPoint = _gpu_cameraFrustumBufferBindingPoint;

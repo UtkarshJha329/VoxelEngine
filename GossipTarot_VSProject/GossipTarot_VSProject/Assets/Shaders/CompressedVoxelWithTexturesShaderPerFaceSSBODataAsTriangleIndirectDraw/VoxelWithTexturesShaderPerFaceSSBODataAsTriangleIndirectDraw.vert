@@ -173,4 +173,24 @@ void main()
     gl_Position = projection * view * model * vec4(vertexPosition, 1.0);
     texCoords = GetCurrentTexCoordBasedOnVertexIDAndCurFace(curFace);
 
+	vec3 maxPosition = worldSizeInChunks * numVoxelsInChunk;
+//
+//	if (chunkXPos > chunkYPos){
+//		if (chunkXPos > chunkZPos){
+//			chunkDebugColour = vec4(chunkXPos / maxPosition.x, 0.0, 0.0, 1.0);
+//		} else if(chunkXPos < chunkZPos){
+//			chunkDebugColour = vec4(0.0, 0.0, chunkZPos / maxPosition.z, 1.0);			
+//		} else{
+//			chunkDebugColour = vec4(0.0, chunkYPos / maxPosition.y, chunkZPos / maxPosition.z, 1.0);			
+//		}
+//	}else{
+//		if (chunkYPos > chunkZPos){
+//			chunkDebugColour = vec4(0.0, chunkYPos / maxPosition.y, 0.0, 1.0);			
+//		} else if(chunkYPos < chunkZPos){
+//			chunkDebugColour = vec4(0.0, 0.0, chunkZPos / maxPosition.z, 1.0);			
+//		} else{
+//			chunkDebugColour = vec4(chunkXPos / maxPosition.x, chunkYPos / maxPosition.y, 0.0, 1.0);			
+//		}
+//	}
+
 }

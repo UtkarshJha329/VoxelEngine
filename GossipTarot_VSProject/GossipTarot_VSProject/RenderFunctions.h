@@ -164,7 +164,6 @@ void RenderMeshOnGPUWithDrawElementsIndirectCommandsWithComputeShader(const Shad
 	);
 }
 
-unsigned int currentChunkVisibilityBufferIndex = 0;
 
 void RenderMeshOnGPUWithDrawElementsIndirectCommandsWithComputeShaderAndCullingComputeShader(
 	const ShaderProgram& shaderForRendering, const ShaderProgram& voxelsIndirectDrawComputShader,
@@ -178,10 +177,11 @@ void RenderMeshOnGPUWithDrawElementsIndirectCommandsWithComputeShaderAndCullingC
 	const MeshOnGPU& meshOnGPU,
 	const ChunksPerFaceIndirectDrawCommands& chunksPerFaceIndirectDrawCommands,
 	const VoxelsDataPool& voxelsDataPool, const ChunksVoxelsDataPoolMetadata& chunksVoxelsDataPoolMetadata,
-	bool& _freezeCulling) {
+	bool& _freezeCulling, bool& _drawBoundingBox) {
 
 	glEnable(GL_DEPTH_TEST);
-	glDepthFunc(GL_LESS);
+	//glDepthFunc(GL_LESS);
+	glDepthFunc(GL_LEQUAL);
 
 
 	// Run Indirect Draw Compute Shader On Vissible Chunks
@@ -224,10 +224,6 @@ void RenderMeshOnGPUWithDrawElementsIndirectCommandsWithComputeShaderAndCullingC
 
 		int modelLoc = glGetUniformLocation(shaderForRendering.shaderProgramID, "model");
 		glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(globalTransformMatrix));
-
-		int currentChunkVisibilityBufferIndexLoc = glGetUniformLocation(shaderForRendering.shaderProgramID, "currentChunkVisibilityBufferIndex");
-		glUniform1ui(currentChunkVisibilityBufferIndexLoc, currentChunkVisibilityBufferIndex);
-
 	}
 
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, voxelsDataPool.megaVoxelsPerFaceDataBufferObjectBindingLocation, voxelsDataPool.megaVoxelsPerFaceDataBufferObjectID);
@@ -254,6 +250,7 @@ void RenderMeshOnGPUWithDrawElementsIndirectCommandsWithComputeShaderAndCullingC
 	//================================================================================================================================================
 	//================================================================================================================================================
 	bool freezeCulling = _freezeCulling;
+	bool drawBoundingBox = _drawBoundingBox;
 	//================================================================================================================================================
 	//================================================================================================================================================
 
@@ -265,9 +262,6 @@ void RenderMeshOnGPUWithDrawElementsIndirectCommandsWithComputeShaderAndCullingC
 			{
 				int worldSizeInChunksLoc = glGetUniformLocation(chunkVisibilityResetComputeShader.shaderProgramID, "worldSizeInChunks");
 				glUniform3fv(worldSizeInChunksLoc, 1, glm::value_ptr(worldSizeInChunks));
-
-				int currentChunkVisibilityBufferIndexLoc = glGetUniformLocation(chunkVisibilityResetComputeShader.shaderProgramID, "currentChunkVisibilityBufferIndex");
-				glUniform1ui(currentChunkVisibilityBufferIndexLoc, currentChunkVisibilityBufferIndex);
 
 			}
 
@@ -300,9 +294,6 @@ void RenderMeshOnGPUWithDrawElementsIndirectCommandsWithComputeShaderAndCullingC
 
 				int worldSizeInChunksLoc = glGetUniformLocation(frustumCullingComputeShader.shaderProgramID, "worldSizeInChunks");
 				glUniform3fv(worldSizeInChunksLoc, 1, glm::value_ptr(worldSizeInChunks));
-
-				int currentChunkVisibilityBufferIndexLoc = glGetUniformLocation(frustumCullingComputeShader.shaderProgramID, "currentChunkVisibilityBufferIndex");
-				glUniform1ui(currentChunkVisibilityBufferIndexLoc, currentChunkVisibilityBufferIndex);
 			}
 
 			chunksVisibilityFromCulling.UpdateCameraFrustumOnCPUAndGPU(mainCamera, cameraTransform.position);
@@ -329,9 +320,6 @@ void RenderMeshOnGPUWithDrawElementsIndirectCommandsWithComputeShaderAndCullingC
 
 				int worldSizeInChunksLoc = glGetUniformLocation(occlusionCullingComputeShader.shaderProgramID, "worldSizeInChunks");
 				glUniform3fv(worldSizeInChunksLoc, 1, glm::value_ptr(worldSizeInChunks));
-
-				int currentChunkVisibilityBufferIndexLoc = glGetUniformLocation(occlusionCullingComputeShader.shaderProgramID, "currentChunkVisibilityBufferIndex");
-				glUniform1ui(currentChunkVisibilityBufferIndexLoc, currentChunkVisibilityBufferIndex);
 			}
 
 			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, chunksVoxelsDataPoolMetadata.gpu_chunksVoxelsDataPoolMetadatasBindingPoint, chunksVoxelsDataPoolMetadata.gpu_chunksVoxelsDataPoolMetadatasBufferID);
@@ -363,9 +351,6 @@ void RenderMeshOnGPUWithDrawElementsIndirectCommandsWithComputeShaderAndCullingC
 				int modelLoc = glGetUniformLocation(occlusionCullingVertAndFragShaders.shaderProgramID, "model");
 				glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(globalTransformMatrix));
 
-				int currentChunkVisibilityBufferIndexLoc = glGetUniformLocation(occlusionCullingVertAndFragShaders.shaderProgramID, "currentChunkVisibilityBufferIndex");
-				glUniform1ui(currentChunkVisibilityBufferIndexLoc, currentChunkVisibilityBufferIndex);
-
 			}
 
 
@@ -396,17 +381,58 @@ void RenderMeshOnGPUWithDrawElementsIndirectCommandsWithComputeShaderAndCullingC
 
 			glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
-			if (currentChunkVisibilityBufferIndex == 0) {
-				currentChunkVisibilityBufferIndex = 1;
-			}
-			else {
-				currentChunkVisibilityBufferIndex = 0;
-			}
-
 			glDepthMask(GL_TRUE);
 			glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 
 		}
+	}
+
+	if(drawBoundingBox) {
+		// Draw bounding box
+
+		glUseProgram(occlusionCullingVertAndFragShaders.shaderProgramID);
+
+		{
+			int mainCameraViewLoc = glGetUniformLocation(occlusionCullingVertAndFragShaders.shaderProgramID, "view");
+			Mat4x4 viewMatrix = glm::lookAt(cameraTransform.position, glm::normalize(mainCamera.cameraPointingDirection) + cameraTransform.position, mainCamera.cameraUp);
+			glUniformMatrix4fv(mainCameraViewLoc, 1, GL_FALSE, glm::value_ptr(viewMatrix));
+
+			int mainCameraProjectionLoc = glGetUniformLocation(occlusionCullingVertAndFragShaders.shaderProgramID, "projection");
+			glUniformMatrix4fv(mainCameraProjectionLoc, 1, GL_FALSE, glm::value_ptr(mainCamera.GetProjectionMatrix()));
+
+			int cameraWorldVoxelPositionLoc = glGetUniformLocation(occlusionCullingVertAndFragShaders.shaderProgramID, "cameraWorldVoxelPosition");
+			glUniform3fv(cameraWorldVoxelPositionLoc, 1, glm::value_ptr(cameraTransform.position));
+
+			int worldSizeInChunksLoc = glGetUniformLocation(occlusionCullingVertAndFragShaders.shaderProgramID, "worldSizeInChunks");
+			glUniform3fv(worldSizeInChunksLoc, 1, glm::value_ptr(worldSizeInChunks));
+
+			int modelLoc = glGetUniformLocation(occlusionCullingVertAndFragShaders.shaderProgramID, "model");
+			glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(globalTransformMatrix));
+
+		}
+
+
+		//glBindTexture(GL_TEXTURE_2D, Texture::textures[textureIndex].textureID);
+
+		glBindVertexArray(meshOnGPU.VAO);
+		glBindBuffer(GL_PARAMETER_BUFFER, chunksPerFaceIndirectDrawCommands.gpu_drawElementsIndirectCommandsDrawCountBufferID);
+		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, chunksPerFaceIndirectDrawCommands.gpu_drawElementsIndirectCommandsBufferID);
+
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, voxelsDataPool.megaVoxelsPerFaceDataBufferObjectBindingLocation, voxelsDataPool.megaVoxelsPerFaceDataBufferObjectID);
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, chunksVisibilityFromCulling.gpu_chunksVisibilityDataBufferBindingPoint, chunksVisibilityFromCulling.gpu_chunksVisibilityDataBufferID);
+
+		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
+		glMultiDrawElementsIndirectCount(
+			GL_TRIANGLES,
+			GL_UNSIGNED_INT,															// Type of data in indicesBuffer
+			(const void*)0,																// No offset into draw command buffer
+			0,																			// No offset into draw count buffer
+			chunksPerFaceIndirectDrawCommands.cpu_drawElementsIndirectCommands.size(),	// Max Draw Count
+			sizeof(DrawElementsIndirectCommand)											// Stride.
+		);
+
+		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 	}
 
 }

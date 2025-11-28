@@ -182,6 +182,7 @@
     <ClInclude Include="ChunksVoxelsDataPoolMetadata.h" />
     <ClInclude Include="Colour.h" />
     <ClInclude Include="ChunksPerFaceDrawElementsIndirectCommands.h" />
+    <ClInclude Include="CommonChunkBoundingMesh.h" />
     <ClInclude Include="FileHandling.h" />
     <ClInclude Include="GLMIncludes.h" />
     <ClInclude Include="GlobalConstants.h" />
