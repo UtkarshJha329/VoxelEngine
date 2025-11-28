@@ -36,14 +36,18 @@ public:
 	unsigned int gpu_chunksVisibilityDataBufferID;
 	unsigned int gpu_chunksVisibilityDataBufferBindingPoint;
 	unsigned int* gpu_chunksVisibilityDataBufferPointer;
-	std::vector<unsigned int> chunksVisibilityData;
+	std::vector<uint32_t> chunksVisibilityData;
 
 	Frustum cameraFrustum;
 
 
 	ChunksVisiblityFromCulling(unsigned int totalNumChunks, unsigned int _gpu_cameraFrustumBufferBindingPoint, unsigned int _gpu_chunksVisibilityDataBufferBindingPoint) {
 
-		chunksVisibilityData.resize(totalNumChunks, 0);
+		chunksVisibilityData.resize(totalNumChunks * 2, 1);
+		//chunksVisibilityData.resize(totalNumChunks, 1);
+
+		std::cout << chunksVisibilityData.size() << std::endl;
+
 
 		gpu_chunksVisibilityDataBufferBindingPoint = _gpu_chunksVisibilityDataBufferBindingPoint;
 

@@ -3,6 +3,7 @@
 
 layout (local_size_x = 512) in;
 
+
 struct FaceVoxelsDataPoolMetadata {
 
 	uint voxelDataBucketOffsetIntoMegaArrayIndex;
@@ -53,12 +54,13 @@ void WriteFaceDataToDrawCommand(in uint packedChunkIndex, inout FaceVoxelsDataPo
 
 	uint currentChunkIndirectDrawIndex = atomicAdd(drawCount, 1);
 
-	chunksDrawElementsIndirectCommands[currentChunkIndirectDrawIndex].count = faceVoxelsDataPoolMetadata.numVoxelDataInBucket;
+	chunksDrawElementsIndirectCommands[currentChunkIndirectDrawIndex].count = 3;
 	chunksDrawElementsIndirectCommands[currentChunkIndirectDrawIndex].instanceCount = 1;
 	chunksDrawElementsIndirectCommands[currentChunkIndirectDrawIndex].firstIndex = 0;
 	chunksDrawElementsIndirectCommands[currentChunkIndirectDrawIndex].baseVertex = int(faceVoxelsDataPoolMetadata.voxelDataBucketOffsetIntoMegaArrayIndex);
 	chunksDrawElementsIndirectCommands[currentChunkIndirectDrawIndex].baseInstance = packedChunkIndex;
 }
+
 
 void main(void) {
 
@@ -74,8 +76,8 @@ void main(void) {
 	}
 
 	uint currentChunkVisibilityBufferOffset = uint(worldSizeInChunks.x * worldSizeInChunks.y * worldSizeInChunks.z) * currentChunkVisibilityBufferIndex;
-	
-	if (chunksVisibilityData[currentChunkVisibilityBufferOffset + gl_GlobalInvocationID.x] != 0) {	
+
+	if (chunksVisibilityData[currentChunkVisibilityBufferOffset + gl_GlobalInvocationID.x] == 1) {	
 
 		uint currentChunkIndex = gl_GlobalInvocationID.x;
 
@@ -132,6 +134,8 @@ void main(void) {
 				WriteFaceDataToDrawCommand(chunksVoxelsDataPoolMetadatas[currentChunkIndex].packedChunkIndex, chunksVoxelsDataPoolMetadatas[currentChunkIndex].backFaceVoxelsDataPoolMetadata);
 			}
 		}
+
+		chunksVisibilityData[currentChunkVisibilityBufferOffset + gl_GlobalInvocationID.x] = 0;
 	}
 }
 

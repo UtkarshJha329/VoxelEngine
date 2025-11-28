@@ -69,6 +69,9 @@ void UpdateKeyStates(GLFWwindow* window) {
 	int eKeyState = glfwGetKey(window, GLFW_KEY_E);
 	SetKeyBasedOnState(KeyCode::KEY_E, eKeyState > 0 ? PRESSED_OR_HELD : RELEASED);
 
+	int fKeyState = glfwGetKey(window, GLFW_KEY_F);
+	SetKeyBasedOnState(KeyCode::KEY_F, fKeyState > 0 ? PRESSED_OR_HELD : RELEASED);
+
 	int escKeyState = glfwGetKey(window, GLFW_KEY_ESCAPE);
 	SetKeyBasedOnState(KeyCode::KEY_ESCAPE, escKeyState > 0 ? PRESSED_OR_HELD : RELEASED);
 
@@ -232,15 +235,52 @@ int main() {
 	voxelBackfaceCullingComputeShaderProgram.CreateShaderProgram(shaderForVoxelBackfaceCullingComputeShaderProgram);
 
 
-	Shader cullingComputeShader;
-	cullingComputeShader.shaderFilePath = "Assets/Shaders/CompressedVoxelWithTexturesShaderPerFaceSSBODataAsTriangleIndirectDraw/FrustumCulling.comp";
-	cullingComputeShader.shaderType = SHADER_TYPE::COMPUTE_SHADER;
-	cullingComputeShader.CreateShader();
+	Shader frustumCullingComputeShader;
+	frustumCullingComputeShader.shaderFilePath = "Assets/Shaders/CompressedVoxelWithTexturesShaderPerFaceSSBODataAsTriangleIndirectDraw/FrustumCulling.comp";
+	frustumCullingComputeShader.shaderType = SHADER_TYPE::COMPUTE_SHADER;
+	frustumCullingComputeShader.CreateShader();
 
-	std::vector<Shader> shaderForCullingComputeShaderProgram = { cullingComputeShader };
-	ShaderProgram cullingComputeShaderProgram;
+	std::vector<Shader> shaderForFrustumCullingComputeShaderProgram = { frustumCullingComputeShader };
+	ShaderProgram frustumCullingComputeShaderProgram;
 
-	cullingComputeShaderProgram.CreateShaderProgram(shaderForCullingComputeShaderProgram);
+	frustumCullingComputeShaderProgram.CreateShaderProgram(shaderForFrustumCullingComputeShaderProgram);
+
+
+	Shader occlusionCullingComputeShader;
+	occlusionCullingComputeShader.shaderFilePath = "Assets/Shaders/CompressedVoxelWithTexturesShaderPerFaceSSBODataAsTriangleIndirectDraw/OcclusionCullingIndirectRender.comp";
+	occlusionCullingComputeShader.shaderType = SHADER_TYPE::COMPUTE_SHADER;
+	occlusionCullingComputeShader.CreateShader();
+
+	std::vector<Shader> shaderForOcclusionCullingComputeShaderProgram = { occlusionCullingComputeShader };
+	ShaderProgram occlusionCullingComputeShaderProgram;
+
+	occlusionCullingComputeShaderProgram.CreateShaderProgram(shaderForOcclusionCullingComputeShaderProgram);
+
+	Shader occlusionCullingChunkBoundingBoxDrawingVertexShader;
+	occlusionCullingChunkBoundingBoxDrawingVertexShader.shaderFilePath = "Assets/Shaders/CompressedVoxelWithTexturesShaderPerFaceSSBODataAsTriangleIndirectDraw/ChunkIndirectDrawForOcclusionCulling.vert";
+	occlusionCullingChunkBoundingBoxDrawingVertexShader.shaderType = SHADER_TYPE::VERTEX_SHADER;
+	occlusionCullingChunkBoundingBoxDrawingVertexShader.CreateShader();
+
+	Shader occlusionCullingChunkBoundingBoxDrawingFragmentShader;
+	occlusionCullingChunkBoundingBoxDrawingFragmentShader.shaderFilePath = "Assets/Shaders/CompressedVoxelWithTexturesShaderPerFaceSSBODataAsTriangleIndirectDraw/ChunkIndirectDrawForOcclusionCulling.frag";
+	occlusionCullingChunkBoundingBoxDrawingFragmentShader.shaderType = SHADER_TYPE::FRAGMENT_SHADER;
+	occlusionCullingChunkBoundingBoxDrawingFragmentShader.CreateShader();
+
+	std::vector<Shader> shadersForOcclusionCullingIndirectDrawShaderProgram = { occlusionCullingChunkBoundingBoxDrawingVertexShader, occlusionCullingChunkBoundingBoxDrawingFragmentShader };
+	ShaderProgram occlusionCullingIndirectDrawShaderProgram;
+
+	occlusionCullingIndirectDrawShaderProgram.CreateShaderProgram(shadersForOcclusionCullingIndirectDrawShaderProgram);
+
+	Shader chunkVisibilityResetComputeShader;
+	chunkVisibilityResetComputeShader.shaderFilePath = "Assets/Shaders/CompressedVoxelWithTexturesShaderPerFaceSSBODataAsTriangleIndirectDraw/ChunkVisibilityReset.comp";
+	chunkVisibilityResetComputeShader.shaderType = SHADER_TYPE::COMPUTE_SHADER;
+	chunkVisibilityResetComputeShader.CreateShader();
+
+	std::vector<Shader> shaderForResettingChunkVisibilityComputeShaderProgram = { chunkVisibilityResetComputeShader };
+	ShaderProgram chunkVisibiltyResetComputeShaderProgram;
+
+	chunkVisibiltyResetComputeShaderProgram.CreateShaderProgram(shaderForResettingChunkVisibilityComputeShaderProgram);
+
 
 
 	MeshOnCPU simpleQuadMeshCPU;
@@ -354,7 +394,7 @@ int main() {
 
 
 	// VVV LIMITED BY COMPRESSION TO INT IN PACKED CHUNK INDEX AND NUMBER OF COMPUTE THREADS DISPATCHED! Currently limited by each coordinate having 7 bits, i.e max 127 for each coord but with compute threads dispatched it is limited to __.
-	Vector3Int worldSizeInChunks = { 64, 16, 64 };
+	Vector3Int worldSizeInChunks = { 8, 2, 8 };
 	Vector3Int chunkSizeInVoxels = { 32, 32, 32 };
 
 	Vector3Int centreVoxelPositionInWorld = { (worldSizeInChunks.x * chunkSizeInVoxels.x) / 2, (worldSizeInChunks.y * chunkSizeInVoxels.y) / 2, (worldSizeInChunks.z * chunkSizeInVoxels.z) / 2 };
@@ -431,7 +471,7 @@ int main() {
 	{
 		LODLevelAndChunksMaxSizeInVoxels[i] /= unsigned int(pow(2, i));
 		numBucketsPerLOD[i] *= 6;
-		numBucketsPerLOD[i] += 100;
+		//numBucketsPerLOD[i] += 100;
 	}	
 
 	numBucketsPerLOD[3] = (totalNumChunks * 6);
@@ -484,18 +524,24 @@ int main() {
 	unsigned int gpu_chunksVisibilityFromCullingDataBindingPoint = 7;
 	ChunksVisiblityFromCulling chunksVisibilityFromCulling(totalNumChunks, gpu_cameraFrustumDataBindingPoint, gpu_chunksVisibilityFromCullingDataBindingPoint);
 
-	// Todo 2 : Frustum Culling.
+	// Todo 2 : Occlusion Culling.
 	// Todo 3 : Block types/ block palette.
 	// Todo 4 : Binary Meshing.
 
 	std::chrono::time_point<std::chrono::high_resolution_clock> lastFrameEndTime = std::chrono::high_resolution_clock::now();
 	float deltaTime = 0.0f;
 
+	bool freezeCulling = false;
+
 	while (!glfwWindowShouldClose(window))
 	{
 		// Find best placement for this piece of code below VVV. Should it be at the end or at the begining or even somewhere in between?
 		if (GetKeyPressedInThisFrame(KeyCode::KEY_ESCAPE)) {
 			glfwSetWindowShouldClose(window, true);
+		}
+
+		if (GetKeyPressedInThisFrame(KeyCode::KEY_F)) {
+			freezeCulling = !freezeCulling;
 		}
 
 		UpdateKeyStates(window);
@@ -554,7 +600,7 @@ int main() {
 				cameraTransform.position -= cameraTransform.worldUp * moveSpeed * deltaTime;
 			}
 
-			if (!CurrentlyGeneratingAChunk(chunkGenerationFutures)) {
+			if (!CurrentlyGeneratingAChunk(chunkGenerationFutures) && !freezeCulling) {
 
 				for (auto& future : chunkGenerationFutures)
 				{
@@ -668,7 +714,9 @@ int main() {
 		RenderMeshOnGPUWithDrawElementsIndirectCommandsWithComputeShaderAndCullingComputeShader(
 			voxelVertexAndFragmentWithCameraWithTexturesPerFaceSSBODataAsTriangleIndirectDrawShaderProgram,
 			voxelBackfaceCullingComputeShaderProgram,
-			cullingComputeShaderProgram, chunksVisibilityFromCulling,
+			frustumCullingComputeShaderProgram, chunksVisibilityFromCulling,
+			occlusionCullingComputeShaderProgram, occlusionCullingIndirectDrawShaderProgram,
+			chunkVisibiltyResetComputeShaderProgram,
 			cameraTransform, mainCamera,
 			modelTransform.GetTransformMatrix(),
 			stickmanTextureIndex,
@@ -676,7 +724,8 @@ int main() {
 			commonChunkMeshOnGPU,
 			chunksPerFaceIndirectDrawCommands,
 			voxelsDataPool,
-			chunksVoxelsDataPoolMetadatas
+			chunksVoxelsDataPoolMetadatas,
+			freezeCulling
 		);
 
 

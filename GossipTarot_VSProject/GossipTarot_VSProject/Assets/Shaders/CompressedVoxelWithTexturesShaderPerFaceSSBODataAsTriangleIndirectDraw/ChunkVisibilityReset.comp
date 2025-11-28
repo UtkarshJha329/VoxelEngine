@@ -1,0 +1,22 @@
+
+#version 460 core
+
+layout (local_size_x = 512) in;
+
+layout (binding = 7, std430) buffer ChunksVisibilityData {
+	uint chunksVisibilityData[];
+};
+
+uniform uint currentChunkVisibilityBufferIndex;
+uniform vec3 worldSizeInChunks;
+
+void main(void) {
+
+	if (gl_GlobalInvocationID.x >= (worldSizeInChunks.x * worldSizeInChunks.y * worldSizeInChunks.z)) {
+		return;
+	}
+
+	uint currentChunkVisibilityBufferOffset = uint(worldSizeInChunks.x * worldSizeInChunks.y * worldSizeInChunks.z) * currentChunkVisibilityBufferIndex;
+    chunksVisibilityData[currentChunkVisibilityBufferOffset + gl_GlobalInvocationID.x] = 1;
+}
+

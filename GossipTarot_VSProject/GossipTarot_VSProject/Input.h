@@ -40,6 +40,7 @@ enum class KeyCode {
 	KEY_A					= 65,
 	KEY_D					= 68,
 	KEY_E					= 69,
+	KEY_F					= 70,
 	KEY_P					= 80,
 	KEY_Q					= 81,
 	KEY_S					= 83,
@@ -97,12 +98,15 @@ int KeyIndex(KeyCode keyCode) {
 	else if (keyCode == KeyCode::KEY_E) {
 		return 11;
 	}
-	else if (keyCode == KeyCode::KEY_ESCAPE) {
+	else if (keyCode == KeyCode::KEY_F) {
 		return 12;
+	}
+	else if (keyCode == KeyCode::KEY_ESCAPE) {
+		return 13;
 	}
 }
 
-constexpr int numKeys = 13;								// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Important! Total number of keys to record!
+constexpr int numKeys = 14;								// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Important! Total number of keys to record!
 
 std::vector<bool> keyPressedInThisFrame(numKeys);
 std::vector<bool> keyHeld(numKeys);
@@ -168,6 +172,7 @@ void ResetKeysReleased() {
 	keyReleasedInThisFrame[KeyIndex(KeyCode::KEY_P)] = false;
 	keyReleasedInThisFrame[KeyIndex(KeyCode::KEY_Q)] = false;
 	keyReleasedInThisFrame[KeyIndex(KeyCode::KEY_E)] = false;
+	keyReleasedInThisFrame[KeyIndex(KeyCode::KEY_F)] = false;
 	keyReleasedInThisFrame[KeyIndex(KeyCode::KEY_ESCAPE)] = false;
 	keyReleasedInThisFrame[KeyIndex(KeyCode::KEY_SPACE)] = false;
 
