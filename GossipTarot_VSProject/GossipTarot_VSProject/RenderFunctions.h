@@ -179,6 +179,8 @@ void RenderMeshOnGPUWithDrawElementsIndirectCommandsWithComputeShaderAndCullingC
 	const VoxelsDataPool& voxelsDataPool, const ChunksVoxelsDataPoolMetadata& chunksVoxelsDataPoolMetadata,
 	bool& _freezeCulling, bool& _drawBoundingBox) {
 
+	Vector3Int computeDispatchThreads = { 512, 1, 1 };
+
 	glEnable(GL_DEPTH_TEST);
 	//glDepthFunc(GL_LESS);
 	glDepthFunc(GL_LEQUAL);
@@ -200,7 +202,8 @@ void RenderMeshOnGPUWithDrawElementsIndirectCommandsWithComputeShaderAndCullingC
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, chunksPerFaceIndirectDrawCommands.gpu_drawElementsIndirectCommandsDrawCountBufferBindingPoint, chunksPerFaceIndirectDrawCommands.gpu_drawElementsIndirectCommandsDrawCountBufferID);
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, chunksVisibilityFromCulling.gpu_chunksVisibilityDataBufferBindingPoint, chunksVisibilityFromCulling.gpu_chunksVisibilityDataBufferID);
 
-	glDispatchCompute(128, 1, 1);
+	glDispatchCompute(computeDispatchThreads.x, computeDispatchThreads.y, computeDispatchThreads.z);
+	//glDispatchCompute(128, 1, 1);
 
 	glMemoryBarrier(GL_COMMAND_BARRIER_BIT | GL_SHADER_STORAGE_BARRIER_BIT);
 
@@ -267,7 +270,7 @@ void RenderMeshOnGPUWithDrawElementsIndirectCommandsWithComputeShaderAndCullingC
 
 			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, chunksVisibilityFromCulling.gpu_chunksVisibilityDataBufferBindingPoint, chunksVisibilityFromCulling.gpu_chunksVisibilityDataBufferID);
 
-			glDispatchCompute(128, 1, 1);
+			glDispatchCompute(computeDispatchThreads.x, computeDispatchThreads.y, computeDispatchThreads.z);
 			glMemoryBarrier(GL_COMMAND_BARRIER_BIT | GL_SHADER_STORAGE_BARRIER_BIT);
 		}
 
@@ -299,7 +302,7 @@ void RenderMeshOnGPUWithDrawElementsIndirectCommandsWithComputeShaderAndCullingC
 			chunksVisibilityFromCulling.UpdateCameraFrustumOnCPUAndGPU(mainCamera, cameraTransform.position);
 			chunksVisibilityFromCulling.GPU_BindBuffersNeededForChunksVisibilityDataCalculation();
 
-			glDispatchCompute(128, 1, 1);
+			glDispatchCompute(computeDispatchThreads.x, computeDispatchThreads.y, computeDispatchThreads.z);
 			glMemoryBarrier(GL_COMMAND_BARRIER_BIT | GL_SHADER_STORAGE_BARRIER_BIT);
 		}
 
@@ -327,7 +330,7 @@ void RenderMeshOnGPUWithDrawElementsIndirectCommandsWithComputeShaderAndCullingC
 			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, chunksPerFaceIndirectDrawCommands.gpu_drawElementsIndirectCommandsDrawCountBufferBindingPoint, chunksPerFaceIndirectDrawCommands.gpu_drawElementsIndirectCommandsDrawCountBufferID);
 			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, chunksVisibilityFromCulling.gpu_chunksVisibilityDataBufferBindingPoint, chunksVisibilityFromCulling.gpu_chunksVisibilityDataBufferID);
 
-			glDispatchCompute(128, 1, 1);
+			glDispatchCompute(computeDispatchThreads.x, computeDispatchThreads.y, computeDispatchThreads.z);
 
 			glMemoryBarrier(GL_COMMAND_BARRIER_BIT | GL_SHADER_STORAGE_BARRIER_BIT);
 

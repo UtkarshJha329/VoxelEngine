@@ -54,22 +54,40 @@ int CurChunkLODLevel(
 
 	int LOD_Level = -1;
 
-	if (xDist <= 64.0 && zDist <= 64.0) {
+	if (xDist <= 1024.0 && zDist <= 1024.0) {
 		return 0;
 	}
-	else if ((xDist > 512.0) || (zDist > 512.0)) {
+	else if ((xDist > 2524.0) || (zDist > 2524.0)) {
 		return 4;
 	}
-	else if ((xDist > 256.0 && xDist <= 512.0) || (zDist > 256.0 && zDist <= 512.0)) {
 	//else if ((xDist > 256.0) || (zDist > 256.0)) {
+	else if ((xDist > 1524.0 && xDist <= 2524.0) || (zDist > 1524.0 && zDist <= 2524.0)) {
 		return 3;
 	}
-	else if ((xDist > 128.0 && xDist <= 256.0) || (zDist > 128.0 && zDist <= 256.0)) {
+	else if ((xDist > 1224.0 && xDist <= 1524.0) || (zDist > 1224.0 && zDist <= 1524.0)) {
 		return 2;
 	}
-	else if ((xDist > 64.0 && xDist <= 128.0) || (zDist > 64.0 && zDist <= 128.0)) {
+	else if ((xDist > 1024.0 && xDist <= 1224.0) || (zDist > 1024.0 && zDist <= 1224.0)) {
+	//else if ((xDist > 96.0 && xDist <= 128.0) || (zDist > 96.0 && zDist <= 128.0)) {
 		return 1;
 	}
+	//if (xDist <= 160.0 && zDist <= 160.0) {
+	//	return 0;
+	//}
+	//else if ((xDist > 1024.0) || (zDist > 1024.0)) {
+	//	return 4;
+	//}
+	////else if ((xDist > 256.0) || (zDist > 256.0)) {
+	//else if ((xDist > 512.0 && xDist <= 1024) || (zDist > 512.0 && zDist <= 1024)) {
+	//	return 3;
+	//}
+	//else if ((xDist > 256.0 && xDist <= 512.0) || (zDist > 256.0 && zDist <= 512.0)) {
+	//	return 2;
+	//}
+	//else if ((xDist > 160.0 && xDist <= 256.0) || (zDist > 160.0 && zDist <= 256.0)) {
+	////else if ((xDist > 96.0 && xDist <= 128.0) || (zDist > 96.0 && zDist <= 128.0)) {
+	//	return 1;
+	//}
 
 	return LOD_Level;
 }

@@ -401,20 +401,38 @@ int main() {
 
 
 	// VVV LIMITED BY COMPRESSION TO INT IN PACKED CHUNK INDEX AND NUMBER OF COMPUTE THREADS DISPATCHED! Currently limited by each coordinate having 7 bits, i.e max 127 for each coord but with compute threads dispatched it is limited to __.
-	Vector3Int worldSizeInChunks = { 64, 16, 64 };
+	Vector3Int worldSizeInChunks = { 96, 16, 96 };
+	//Vector3Int worldSizeInChunks = { 64, 16, 64 };
+	//Vector3Int worldSizeInChunks = { 32, 16, 32 };
 	//Vector3Int worldSizeInChunks = { 4, 2, 4 };
 	Vector3Int chunkSizeInVoxels = { 32, 32, 32 };
 
 	Vector3Int centreVoxelPositionInWorld = { (worldSizeInChunks.x * chunkSizeInVoxels.x) / 2, (worldSizeInChunks.y * chunkSizeInVoxels.y) / 2, (worldSizeInChunks.z * chunkSizeInVoxels.z) / 2 };
 	cameraTransform.position = { centreVoxelPositionInWorld.x, centreVoxelPositionInWorld.y, centreVoxelPositionInWorld.z };
 
-	const unsigned int numLODLevels = 5;
+	const unsigned int numVoxelsPerFaceClassifications = 7;
 
 	unsigned int numVoxelDatasOnLOD_Zero_Bucket = (chunkSizeInVoxels.x / 2) * (chunkSizeInVoxels.y / 2) * (chunkSizeInVoxels.z / 2);
-	std::vector<unsigned int> LODLevelAndChunksMaxSizeInVoxels(numLODLevels, numVoxelDatasOnLOD_Zero_Bucket);
+	std::vector<unsigned int> NumVoxelPerFaceClassification = {
+		10,
+		50,
+		100,
+		500,
+		1000,
+		2000,
+		5000
+	};
 
 	unsigned int totalNumChunks = worldSizeInChunks.x * worldSizeInChunks.y * worldSizeInChunks.z;
-	std::vector<unsigned int> numBucketsPerLOD(numLODLevels, 0);
+	std::vector<unsigned int> numBucketsPerClassification = {
+		70000,
+		70000,
+		25000,
+		40000,
+		30000,
+		3000,
+		100
+	};
 
 	Vector3 currentCameraChunkPosition = Vector3(int(cameraTransform.position.x / (chunkSizeInVoxels.x)), 0.0, int(cameraTransform.position.z / (chunkSizeInVoxels.z)));
 	currentCameraChunkPosition *= chunkSizeInVoxels;
@@ -430,19 +448,24 @@ int main() {
 				Vector3 chunkPosition = chunkIndex * chunkSizeInVoxels;
 
 				int LOD_Level = CurChunkLODLevel(chunkIndex, chunkPosition, worldSizeInChunks, halfChunkSize, currentCameraChunkPosition);
-				numBucketsPerLOD[LOD_Level]++;
 			}
 		}
 	}
 
-	for (int i = 0; i < numLODLevels; i++)
-	{
-		LODLevelAndChunksMaxSizeInVoxels[i] /= unsigned int(pow(2, i));
-		numBucketsPerLOD[i] *= 6;
-		//numBucketsPerLOD[i] += 100;
-	}	
+	//for (int i = 0; i < numLODLevels; i++)
+	//{
+	//	LODLevelAndChunksMaxSizeInVoxels[i] /= unsigned int(pow(2, i));
+	//	numBucketsPerLOD[i] *= 6;
+	//	numBucketsPerLOD[i] /= 4;
+	//	numBucketsPerLOD[i] += 100;
+	//}	
 
-	numBucketsPerLOD[3] = (totalNumChunks * 6);
+	//for (int i = 0; i < numLODLevels; i++)
+	//{
+	//	std::cout << "LOD " << i << " NUM : " << numBucketsPerLOD[i] << std::endl;
+	//}
+
+	//numBucketsPerLOD[4] = (totalNumChunks * 6);
 
 	//unsigned int numVoxelDatasPerBucket = (chunkSizeInVoxels.x / 2) * (chunkSizeInVoxels.y / 2) * (chunkSizeInVoxels.z / 2);
 	unsigned int numVoxelDatasPerBucket = (chunkSizeInVoxels.x / 2) * (chunkSizeInVoxels.y / 2) * (chunkSizeInVoxels.z / 2);
@@ -451,8 +474,8 @@ int main() {
 
 	size_t sizeOfPoolInBytes = numBuckets * numVoxelDatasPerBucket * sizeof(unsigned int);
 
-	//VoxelsDataPool voxelsDataPool(numVoxelDatasPerBucket, numBuckets, megaVoxelsPerFaceDataBufferObjectBindingLocation);
-	VoxelsDataPool voxelsDataPool(numLODLevels, LODLevelAndChunksMaxSizeInVoxels, numBucketsPerLOD, megaVoxelsPerFaceDataBufferObjectBindingLocation);
+	//VoxelsDataPool voxelsDataPool(numLODLevels, LODLevelAndChunksMaxSizeInVoxels, numBucketsPerLOD, megaVoxelsPerFaceDataBufferObjectBindingLocation);
+	VoxelsDataPool voxelsDataPool(numVoxelsPerFaceClassifications, NumVoxelPerFaceClassification, numBucketsPerClassification, megaVoxelsPerFaceDataBufferObjectBindingLocation);
 
 
 	unsigned int numFaces = worldSizeInChunks.x * worldSizeInChunks.y * worldSizeInChunks.z * 6;
@@ -492,6 +515,14 @@ int main() {
 	unsigned int gpu_chunksVisibilityFromCullingDataBindingPoint = 7;
 	ChunksVisiblityFromCulling chunksVisibilityFromCulling(totalNumChunks, gpu_cameraFrustumDataBindingPoint, gpu_chunksVisibilityFromCullingDataBindingPoint);
 
+	//std::cout << voxelsDataPool.currentFreeHeadOffsetIntoMegaArray << ", " << voxelsDataPool.numFacesOfChunksGenerated << std::endl;
+	//std::cout << voxelsDataPool.voxelSliceAllocator.allocationNextFrom << ", " << voxelsDataPool.numFacesOfChunksGenerated << std::endl;
+	//std::cout << voxelsDataPool.threeThousandSeen << ", " << voxelsDataPool.thousandSeen << ", " << voxelsDataPool.hundredSeen << ", " << voxelsDataPool.fiftySeen << ", " << voxelsDataPool.tenSeen << std::endl;
+	//std::cout << voxelsDataPool.lod0Seen << ", " << voxelsDataPool.lod1Seen << ", " << voxelsDataPool.lod2Seen << ", " << voxelsDataPool.lod3Seen << ", " << voxelsDataPool.lod4Seen << std::endl;
+
+	//std::cout << "Average num voxels per face : " << float(voxelsDataPool.currentFreeHeadOffsetIntoMegaArray) / float(voxelsDataPool.numFacesOfChunksGenerated) << std::endl;
+	//std::cout << "Average num voxels per face : " << float(voxelsDataPool.voxelSliceAllocator.allocationNextFrom) / float(voxelsDataPool.numFacesOfChunksGenerated) << std::endl;
+
 	// Todo 1 : Compress Mega Voxels Data Array Memory Footprint.
 	// Todo 2 : Block Editing.
 	// Todo 3 : Block types/ block palette.
@@ -501,7 +532,7 @@ int main() {
 	float deltaTime = 0.0f;
 
 	bool freezeCulling = false;
-	bool drawBoundingBox = true;
+	bool drawBoundingBox = false;
 
 	while (!glfwWindowShouldClose(window))
 	{
@@ -615,23 +646,30 @@ int main() {
 						int previousLODLevelOfCurChunk = chunksLODLevel[flattenedChunkIndex];
 
 
-						unsigned int chunksCurrentTopFaceBucketIndex = chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas[flattenedChunkIndex].topFaceVoxelsDataPoolMetadata.voxelDataBucketOffsetIntoMegaArrayIndex;
-						voxelsDataPool.MakeBucketAFreeBucket(chunksCurrentTopFaceBucketIndex, previousLODLevelOfCurChunk);
-
-						unsigned int chunksCurrentBottomFaceBucketIndex = chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas[flattenedChunkIndex].bottomFaceVoxelsDataPoolMetadata.voxelDataBucketOffsetIntoMegaArrayIndex;
-						voxelsDataPool.MakeBucketAFreeBucket(chunksCurrentBottomFaceBucketIndex, previousLODLevelOfCurChunk);
-
-						unsigned int chunksCurrentFrontFaceBucketIndex = chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas[flattenedChunkIndex].frontFaceVoxelsDataPoolMetadata.voxelDataBucketOffsetIntoMegaArrayIndex;
-						voxelsDataPool.MakeBucketAFreeBucket(chunksCurrentFrontFaceBucketIndex, previousLODLevelOfCurChunk);
-
-						unsigned int chunksCurrentBackFaceBucketIndex = chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas[flattenedChunkIndex].backFaceVoxelsDataPoolMetadata.voxelDataBucketOffsetIntoMegaArrayIndex;
-						voxelsDataPool.MakeBucketAFreeBucket(chunksCurrentBackFaceBucketIndex, previousLODLevelOfCurChunk);
-
-						unsigned int chunksCurrentLeftFaceBucketIndex = chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas[flattenedChunkIndex].leftFaceVoxelsDataPoolMetadata.voxelDataBucketOffsetIntoMegaArrayIndex;
-						voxelsDataPool.MakeBucketAFreeBucket(chunksCurrentLeftFaceBucketIndex, previousLODLevelOfCurChunk);
-
-						unsigned int chunksCurrentRightFaceBucketIndex = chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas[flattenedChunkIndex].rightFaceVoxelsDataPoolMetadata.voxelDataBucketOffsetIntoMegaArrayIndex;
-						voxelsDataPool.MakeBucketAFreeBucket(chunksCurrentRightFaceBucketIndex, previousLODLevelOfCurChunk);
+						if (chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas[flattenedChunkIndex].topFaceVoxelsDataPoolMetadata.numVoxelDataInBucket > 0) {
+							unsigned int chunksCurrentTopFaceBucketIndex = chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas[flattenedChunkIndex].topFaceVoxelsDataPoolMetadata.voxelDataBucketOffsetIntoMegaArrayIndex;
+							voxelsDataPool.MakeBucketAFreeBucket(chunksCurrentTopFaceBucketIndex, previousLODLevelOfCurChunk);
+						}
+						if (chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas[flattenedChunkIndex].bottomFaceVoxelsDataPoolMetadata.numVoxelDataInBucket > 0) {
+							unsigned int chunksCurrentBottomFaceBucketIndex = chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas[flattenedChunkIndex].bottomFaceVoxelsDataPoolMetadata.voxelDataBucketOffsetIntoMegaArrayIndex;
+							voxelsDataPool.MakeBucketAFreeBucket(chunksCurrentBottomFaceBucketIndex, previousLODLevelOfCurChunk);
+						}
+						if (chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas[flattenedChunkIndex].frontFaceVoxelsDataPoolMetadata.numVoxelDataInBucket > 0) {
+							unsigned int chunksCurrentFrontFaceBucketIndex = chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas[flattenedChunkIndex].frontFaceVoxelsDataPoolMetadata.voxelDataBucketOffsetIntoMegaArrayIndex;
+							voxelsDataPool.MakeBucketAFreeBucket(chunksCurrentFrontFaceBucketIndex, previousLODLevelOfCurChunk);
+						}
+						if (chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas[flattenedChunkIndex].backFaceVoxelsDataPoolMetadata.numVoxelDataInBucket > 0) {
+							unsigned int chunksCurrentBackFaceBucketIndex = chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas[flattenedChunkIndex].backFaceVoxelsDataPoolMetadata.voxelDataBucketOffsetIntoMegaArrayIndex;
+							voxelsDataPool.MakeBucketAFreeBucket(chunksCurrentBackFaceBucketIndex, previousLODLevelOfCurChunk);
+						}
+						if (chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas[flattenedChunkIndex].leftFaceVoxelsDataPoolMetadata.numVoxelDataInBucket > 0) {
+							unsigned int chunksCurrentLeftFaceBucketIndex = chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas[flattenedChunkIndex].leftFaceVoxelsDataPoolMetadata.voxelDataBucketOffsetIntoMegaArrayIndex;
+							voxelsDataPool.MakeBucketAFreeBucket(chunksCurrentLeftFaceBucketIndex, previousLODLevelOfCurChunk);
+						}
+						if (chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas[flattenedChunkIndex].rightFaceVoxelsDataPoolMetadata.numVoxelDataInBucket > 0) {
+							unsigned int chunksCurrentRightFaceBucketIndex = chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas[flattenedChunkIndex].rightFaceVoxelsDataPoolMetadata.voxelDataBucketOffsetIntoMegaArrayIndex;
+							voxelsDataPool.MakeBucketAFreeBucket(chunksCurrentRightFaceBucketIndex, previousLODLevelOfCurChunk);
+						}
 					}
 
 					for (int i = 0; i < newChunkLODLevels.size(); i++)

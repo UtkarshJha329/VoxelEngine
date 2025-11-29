@@ -245,7 +245,7 @@ void main()
 
 	vec3 maxPosition = worldSizeInChunks * numVoxelsInChunk;
 
-	chunkDebugColour = vec4(generateConsistentColor(chunkXPos, chunkYPos, chunkZPos), 1.0);
+//	chunkDebugColour = vec4(generateConsistentColor(chunkXPos, chunkYPos, chunkZPos), 1.0);
 
 //	if (chunkXPos > chunkYPos){
 //		if (chunkXPos > chunkZPos){

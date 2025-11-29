@@ -76,12 +76,14 @@ void GenerateCommonChunkMeshOnGPU(const Vector3Int& chunkSizeInVoxels, MeshOnGPU
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(indices[0]), indices.data(), GL_STATIC_DRAW);
 }
 
-void GPU_WriteFaceVoxelDataToFreeBucketAndFillMetadata(VoxelsDataPool& voxelsDataPool,	std::vector<unsigned int>& compressedChunkFaceVoxelPositions, FaceVoxelsDataPoolMetadata& curChunkFaceVoxelsDataPoolMetadata, unsigned int& numFaceIndices, const unsigned int& curLODLevel) {
-	if (voxelsDataPool.GPU_WriteFaceVoxelDataToFreeBucket(compressedChunkFaceVoxelPositions, curChunkFaceVoxelsDataPoolMetadata, curLODLevel)) {
-		curChunkFaceVoxelsDataPoolMetadata.numVoxelDataInBucket = numFaceIndices;
-	}
-	else {
-		std::cout << "ERROR : " << "Failed to write data to voxel data pool. Cur LOD Level := " << curLODLevel << std::endl;
+void GPU_WriteFaceVoxelDataToFreeBucketAndFillMetadata(VoxelsDataPool& voxelsDataPool,	std::vector<unsigned int>& compressedChunkFaceVoxelPositions, FaceVoxelsDataPoolMetadata& curChunkFaceVoxelsDataPoolMetadata, unsigned int& numFaceIndices, const unsigned int& numVoxelsForFace, const unsigned int& curLODLevel) {
+	if (numVoxelsForFace > 0) {
+		if (voxelsDataPool.GPU_WriteFaceVoxelDataToFreeBucket(compressedChunkFaceVoxelPositions, curChunkFaceVoxelsDataPoolMetadata, numVoxelsForFace)) {
+			curChunkFaceVoxelsDataPoolMetadata.numVoxelDataInBucket = numFaceIndices;
+		}
+		else {
+			std::cout << "ERROR : " << "Failed to write data to voxel data pool. Cur LOD Level := " << curLODLevel << ", num voxels for faces : " << numVoxelsForFace << std::endl;
+		}
 	}
 }
 
@@ -117,6 +119,13 @@ void GenerateChunkVoxelPositionsOnGPUAsSSBOAsTriangleWithVoxelDataPoolForIndirec
 	unsigned int numFrontFaceIndicesInChunk = 0;
 	unsigned int numBackFaceIndicesInChunk = 0;
 
+	unsigned int numTopFaceVoxels = 0;
+	unsigned int numBottomFaceVoxels = 0;
+	unsigned int numLeftFaceVoxels = 0;
+	unsigned int numRightFaceVoxels = 0;
+	unsigned int numFrontFaceVoxels = 0;
+	unsigned int numBackFaceVoxels = 0;
+
 
 	int currentVoxelLODSize = pow(2, curChunkLODLevel);
 
@@ -141,33 +150,39 @@ void GenerateChunkVoxelPositionsOnGPUAsSSBOAsTriangleWithVoxelDataPoolForIndirec
 
 					if (!NoiseExistsInNeighbour(chunkNoise, extraVoxelsOnOneSide, extraVoxelsTotalPadding, chunkIndex, chunkSizeInVoxels, worldSizeInChunks, Vector3Int{ x, y, z }, Vector3Int{ 0, 1, 0 } * currentVoxelLODSize)) {
 						AddBitShiftFaceIDToCompressedVoxelPositionAsTriangleForSSBOOfIndirectDrawCommands(compressedChunkTopFaceVoxelPositions, numTopFaceIndicesInChunk, curVoxelCompactPos, (bitShiftFaceIDTop << bitShiftPosFace));
+						numTopFaceVoxels++;
 					}
 					if (!NoiseExistsInNeighbour(chunkNoise, extraVoxelsOnOneSide, extraVoxelsTotalPadding, chunkIndex, chunkSizeInVoxels, worldSizeInChunks, Vector3Int{ x, y, z }, Vector3Int{ 0, -1, 0 } * currentVoxelLODSize)) {
 						AddBitShiftFaceIDToCompressedVoxelPositionAsTriangleForSSBOOfIndirectDrawCommands(compressedChunkBottomFaceVoxelPositions, numBottomFaceIndicesInChunk, curVoxelCompactPos, (bitShiftFaceIDBottom << bitShiftPosFace));
+						numBottomFaceVoxels++;
 					}
 					if (!NoiseExistsInNeighbour(chunkNoise, extraVoxelsOnOneSide, extraVoxelsTotalPadding, chunkIndex, chunkSizeInVoxels, worldSizeInChunks, Vector3Int{ x, y, z }, Vector3Int{ -1, 0, 0 } * currentVoxelLODSize)) {
 						AddBitShiftFaceIDToCompressedVoxelPositionAsTriangleForSSBOOfIndirectDrawCommands(compressedChunkLeftFaceVoxelPositions, numLeftFaceIndicesInChunk, curVoxelCompactPos, (bitShiftFaceIDLeft << bitShiftPosFace));
+						numLeftFaceVoxels++;
 					}
 					if (!NoiseExistsInNeighbour(chunkNoise, extraVoxelsOnOneSide, extraVoxelsTotalPadding, chunkIndex, chunkSizeInVoxels, worldSizeInChunks, Vector3Int{ x, y, z }, Vector3Int{ 1, 0, 0 } * currentVoxelLODSize)) {
 						AddBitShiftFaceIDToCompressedVoxelPositionAsTriangleForSSBOOfIndirectDrawCommands(compressedChunkRightFaceVoxelPositions, numRightFaceIndicesInChunk, curVoxelCompactPos, (bitShiftFaceIDRight << bitShiftPosFace));
+						numRightFaceVoxels++;
 					}
 					if (!NoiseExistsInNeighbour(chunkNoise, extraVoxelsOnOneSide, extraVoxelsTotalPadding, chunkIndex, chunkSizeInVoxels, worldSizeInChunks, Vector3Int{ x, y, z }, Vector3Int{ 0, 0, 1 } * currentVoxelLODSize)) {
 						AddBitShiftFaceIDToCompressedVoxelPositionAsTriangleForSSBOOfIndirectDrawCommands(compressedChunkFrontFaceVoxelPositions, numFrontFaceIndicesInChunk, curVoxelCompactPos, (bitShiftFaceIDFront << bitShiftPosFace));
+						numFrontFaceVoxels++;
 					}
 					if (!NoiseExistsInNeighbour(chunkNoise, extraVoxelsOnOneSide, extraVoxelsTotalPadding, chunkIndex, chunkSizeInVoxels, worldSizeInChunks, Vector3Int{ x, y, z }, Vector3Int{ 0, 0, -1 } * currentVoxelLODSize)) {
 						AddBitShiftFaceIDToCompressedVoxelPositionAsTriangleForSSBOOfIndirectDrawCommands(compressedChunkBackFaceVoxelPositions, numBackFaceIndicesInChunk, curVoxelCompactPos, (bitShiftFaceIDBack << bitShiftPosFace));
+						numBackFaceVoxels++;
 					}
 				}
 			}
 		}
 	}
 
-	GPU_WriteFaceVoxelDataToFreeBucketAndFillMetadata(voxelsDataPool, compressedChunkTopFaceVoxelPositions, curChunkVoxelsDataPoolMetadata.topFaceVoxelsDataPoolMetadata, numTopFaceIndicesInChunk, curChunkLODLevel);
-	GPU_WriteFaceVoxelDataToFreeBucketAndFillMetadata(voxelsDataPool, compressedChunkBottomFaceVoxelPositions, curChunkVoxelsDataPoolMetadata.bottomFaceVoxelsDataPoolMetadata, numBottomFaceIndicesInChunk, curChunkLODLevel);
-	GPU_WriteFaceVoxelDataToFreeBucketAndFillMetadata(voxelsDataPool, compressedChunkLeftFaceVoxelPositions, curChunkVoxelsDataPoolMetadata.leftFaceVoxelsDataPoolMetadata, numLeftFaceIndicesInChunk, curChunkLODLevel);
-	GPU_WriteFaceVoxelDataToFreeBucketAndFillMetadata(voxelsDataPool, compressedChunkRightFaceVoxelPositions, curChunkVoxelsDataPoolMetadata.rightFaceVoxelsDataPoolMetadata, numRightFaceIndicesInChunk, curChunkLODLevel);
-	GPU_WriteFaceVoxelDataToFreeBucketAndFillMetadata(voxelsDataPool, compressedChunkFrontFaceVoxelPositions, curChunkVoxelsDataPoolMetadata.frontFaceVoxelsDataPoolMetadata, numFrontFaceIndicesInChunk, curChunkLODLevel);
-	GPU_WriteFaceVoxelDataToFreeBucketAndFillMetadata(voxelsDataPool, compressedChunkBackFaceVoxelPositions, curChunkVoxelsDataPoolMetadata.backFaceVoxelsDataPoolMetadata, numBackFaceIndicesInChunk, curChunkLODLevel);
+	GPU_WriteFaceVoxelDataToFreeBucketAndFillMetadata(voxelsDataPool, compressedChunkTopFaceVoxelPositions, curChunkVoxelsDataPoolMetadata.topFaceVoxelsDataPoolMetadata, numTopFaceIndicesInChunk, numTopFaceVoxels, curChunkLODLevel);
+	GPU_WriteFaceVoxelDataToFreeBucketAndFillMetadata(voxelsDataPool, compressedChunkBottomFaceVoxelPositions, curChunkVoxelsDataPoolMetadata.bottomFaceVoxelsDataPoolMetadata, numBottomFaceIndicesInChunk, numBottomFaceVoxels, curChunkLODLevel);
+	GPU_WriteFaceVoxelDataToFreeBucketAndFillMetadata(voxelsDataPool, compressedChunkLeftFaceVoxelPositions, curChunkVoxelsDataPoolMetadata.leftFaceVoxelsDataPoolMetadata, numLeftFaceIndicesInChunk, numLeftFaceVoxels, curChunkLODLevel);
+	GPU_WriteFaceVoxelDataToFreeBucketAndFillMetadata(voxelsDataPool, compressedChunkRightFaceVoxelPositions, curChunkVoxelsDataPoolMetadata.rightFaceVoxelsDataPoolMetadata, numRightFaceIndicesInChunk, numRightFaceVoxels, curChunkLODLevel);
+	GPU_WriteFaceVoxelDataToFreeBucketAndFillMetadata(voxelsDataPool, compressedChunkFrontFaceVoxelPositions, curChunkVoxelsDataPoolMetadata.frontFaceVoxelsDataPoolMetadata, numFrontFaceIndicesInChunk, numFrontFaceVoxels, curChunkLODLevel);
+	GPU_WriteFaceVoxelDataToFreeBucketAndFillMetadata(voxelsDataPool, compressedChunkBackFaceVoxelPositions, curChunkVoxelsDataPoolMetadata.backFaceVoxelsDataPoolMetadata, numBackFaceIndicesInChunk, numBackFaceVoxels, curChunkLODLevel);
 }
 
 void CPU_WriteFaceDataToDrawCommands(const unsigned int& packedChunkIndex, const FaceVoxelsDataPoolMetadata& faceVoxelsDataPoolMetadata, ChunksPerFaceIndirectDrawCommands& chunksPerFaceIndirectDrawCommands) {
