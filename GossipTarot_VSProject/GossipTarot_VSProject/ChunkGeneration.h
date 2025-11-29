@@ -1,9 +1,9 @@
 #pragma once
 
+#include <functional>
 #include <utility>
 #include <atomic>
 #include <future>
-#include <omp.h>
 
 #include "GLMIncludes.h"
 #include "MeshOnGpu.h"
@@ -29,6 +29,51 @@ void CreateNoiseWithPadding(std::vector<float>& noiseOutput, FastNoise::SmartNod
 
 }
 
+int CurChunkLODLevel(
+	Vector3Int chunkIndex,
+	Vector3 chunkPosition,
+	Vector3 worldSizeInChunks,
+	Vector3 halfChunkSize,
+	Vector3 currentCameraChunkPosition) {
+
+	Vector3 curChunkCentrePosition = chunkPosition + halfChunkSize;
+
+	float xDist = (currentCameraChunkPosition.x - curChunkCentrePosition.x);
+	float zDist = (currentCameraChunkPosition.z - curChunkCentrePosition.z);
+
+	float xDistSign = xDist / abs(xDist);
+	float zDistSign = zDist / abs(zDist);
+
+	xDist = abs(xDist);
+	zDist = abs(zDist);
+
+	int xDistIndex = int(xDist / 32);
+	int zDistIndex = int(zDist / 32);
+
+	unsigned int flattenedChunkIndex = GetFlattenedChunkIndexForChunksVoxelsDataPoolMetadatas(worldSizeInChunks, chunkIndex);
+
+	int LOD_Level = -1;
+
+	if (xDist <= 64.0 && zDist <= 64.0) {
+		return 0;
+	}
+	else if ((xDist > 512.0) || (zDist > 512.0)) {
+		return 4;
+	}
+	else if ((xDist > 256.0 && xDist <= 512.0) || (zDist > 256.0 && zDist <= 512.0)) {
+	//else if ((xDist > 256.0) || (zDist > 256.0)) {
+		return 3;
+	}
+	else if ((xDist > 128.0 && xDist <= 256.0) || (zDist > 128.0 && zDist <= 256.0)) {
+		return 2;
+	}
+	else if ((xDist > 64.0 && xDist <= 128.0) || (zDist > 64.0 && zDist <= 128.0)) {
+		return 1;
+	}
+
+	return LOD_Level;
+}
+
 void GenerateChunkAndUploadTo_GPUAndAddToIndirectRenderCommandVectorOn_CPU(const Vector3Int& chunkIndex, std::vector<int>& chunksLODLevel, FastNoise::SmartNode<FastNoise::FractalFBm> fnFractal, const Vector3& currentCameraChunkPosition, const Vector3& halfChunkSize, const Vector3Int& worldSizeInChunks, const Vector3Int& chunkSizeInVoxels, VoxelsDataPool& voxelsDataPool, ChunksPerFaceIndirectDrawCommands& chunksPerFaceIndirectDrawCommands, std::vector<ChunkVoxelsDataPoolMetadata>& chunksVoxelsDataPoolMetadatas, ChunksVoxelsDataPoolMetadata& chunksVoxelsDataPoolMetadata, const Vector3& cameraPosition) {
 
 	int i = chunkIndex.x;
@@ -43,48 +88,12 @@ void GenerateChunkAndUploadTo_GPUAndAddToIndirectRenderCommandVectorOn_CPU(const
 
 		Vector3 curChunkCentrePosition = chunkPosition + halfChunkSize;
 
-		float xDist = (currentCameraChunkPosition.x - curChunkCentrePosition.x);
-		float zDist = (currentCameraChunkPosition.z - curChunkCentrePosition.z);
-
-		float xDistSign = xDist / abs(xDist);
-		float zDistSign = zDist / abs(zDist);
-
-		xDist = abs(xDist);
-		zDist = abs(zDist);
-
-		int xDistIndex = int(xDist / 32);
-		int zDistIndex = int(zDist / 32);
-
 		Vector3Int chunkIndex = Vector3Int{ i, j, k };
 		unsigned int flattenedChunkIndex = GetFlattenedChunkIndexForChunksVoxelsDataPoolMetadatas(worldSizeInChunks, chunkIndex);
 
-		int LOD_Level = -1;
-
-		if (xDist <= 64.0 && zDist <= 64.0) {
-
-			LOD_Level = 0;
-			shouldCreateChunk = true;
-			chunksLODLevel[flattenedChunkIndex] = 0;
-		}
-		//else if ((xDist > 256.0 && xDist <= 512.0) || (zDist > 256.0 && zDist <= 512.0)) {
-		else if ((xDist > 256.0) || (zDist > 256.0)) {
-
-			LOD_Level = 3;
-			shouldCreateChunk = true;
-			chunksLODLevel[flattenedChunkIndex] = 3;
-		}
-		else if ((xDist > 128.0 && xDist <= 256.0) || (zDist > 128.0 && zDist <= 256.0)) {
-
-			LOD_Level = 2;
-			shouldCreateChunk = true;
-			chunksLODLevel[flattenedChunkIndex] = 2;
-		}
-		else if ((xDist > 64.0 && xDist <= 128.0) || (zDist > 64.0 && zDist <= 128.0)) {
-
-			LOD_Level = 1;
-			shouldCreateChunk = true;
-			chunksLODLevel[flattenedChunkIndex] = 1;
-		}
+		int LOD_Level = CurChunkLODLevel(chunkIndex, chunkPosition, worldSizeInChunks, halfChunkSize, currentCameraChunkPosition);
+		chunksLODLevel[flattenedChunkIndex] = LOD_Level;
+		shouldCreateChunk = true;
 
 		if (shouldCreateChunk) {
 
@@ -205,39 +214,11 @@ void CheckChunksForLODChanges(std::vector<int>& currentChunkLODLevels, const Vec
 
 				Vector3 curChunkCentrePosition = chunkPosition + halfChunkSize;
 
-				float xDist = (currentCameraChunkPosition.x - curChunkCentrePosition.x);
-				float zDist = (currentCameraChunkPosition.z - curChunkCentrePosition.z);
-
-				float xDistSign = xDist / abs(xDist);
-				float zDistSign = zDist / abs(zDist);
-
-				xDist = abs(xDist);
-				zDist = abs(zDist);
-
-				int xDistIndex = int(xDist / 32);
-				int zDistIndex = int(zDist / 32);
-
-
 				unsigned int flattenedChunkIndex = GetFlattenedChunkIndexForChunksVoxelsDataPoolMetadatas(worldSizeInChunks, chunkIndex);
-				if (xDist <= 64.0 && zDist <= 64.0) {
-					if (currentChunkLODLevels.at(flattenedChunkIndex) != 0) {
-						newChunkLODLevels.push_back({ chunkIndex, 0 });
-					}
-				}
-				else if ((xDist > 256.0) || (zDist > 256.0)) {
-					if (currentChunkLODLevels.at(flattenedChunkIndex) != 3) {
-						newChunkLODLevels.push_back({ chunkIndex, 3 });
-					}
-				}
-				else if ((xDist > 128.0 && xDist <= 256.0) || (zDist > 128.0 && zDist <= 256.0)) {
-					if (currentChunkLODLevels.at(flattenedChunkIndex) != 2) {
-						newChunkLODLevels.push_back({ chunkIndex, 2 });
-					}
-				}
-				else if ((xDist > 64.0 && xDist <= 128.0) || (zDist > 64.0 && zDist <= 128.0)) {
-					if (currentChunkLODLevels.at(flattenedChunkIndex) != 1) {
-						newChunkLODLevels.push_back({ chunkIndex, 1 });
-					}
+
+				int LOD_Level = CurChunkLODLevel(chunkIndex, chunkPosition, worldSizeInChunks, halfChunkSize, currentCameraChunkPosition);
+				if (currentChunkLODLevels.at(flattenedChunkIndex) != LOD_Level) {
+					newChunkLODLevels.push_back({ chunkIndex, LOD_Level });
 				}
 			}
 		}

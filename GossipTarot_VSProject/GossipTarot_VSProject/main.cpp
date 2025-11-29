@@ -408,23 +408,13 @@ int main() {
 	Vector3Int centreVoxelPositionInWorld = { (worldSizeInChunks.x * chunkSizeInVoxels.x) / 2, (worldSizeInChunks.y * chunkSizeInVoxels.y) / 2, (worldSizeInChunks.z * chunkSizeInVoxels.z) / 2 };
 	cameraTransform.position = { centreVoxelPositionInWorld.x, centreVoxelPositionInWorld.y, centreVoxelPositionInWorld.z };
 
-	const unsigned int numLODLevels = 4;
+	const unsigned int numLODLevels = 5;
 
 	unsigned int numVoxelDatasOnLOD_Zero_Bucket = (chunkSizeInVoxels.x / 2) * (chunkSizeInVoxels.y / 2) * (chunkSizeInVoxels.z / 2);
-	std::vector<unsigned int> LODLevelAndChunksMaxSizeInVoxels = {
-		numVoxelDatasOnLOD_Zero_Bucket,
-		numVoxelDatasOnLOD_Zero_Bucket,
-		numVoxelDatasOnLOD_Zero_Bucket,
-		numVoxelDatasOnLOD_Zero_Bucket
-	};
+	std::vector<unsigned int> LODLevelAndChunksMaxSizeInVoxels(numLODLevels, numVoxelDatasOnLOD_Zero_Bucket);
 
 	unsigned int totalNumChunks = worldSizeInChunks.x * worldSizeInChunks.y * worldSizeInChunks.z;
-	std::vector<unsigned int> numBucketsPerLOD = {
-		0,
-		0,
-		0,
-		0
-	};
+	std::vector<unsigned int> numBucketsPerLOD(numLODLevels, 0);
 
 	Vector3 currentCameraChunkPosition = Vector3(int(cameraTransform.position.x / (chunkSizeInVoxels.x)), 0.0, int(cameraTransform.position.z / (chunkSizeInVoxels.z)));
 	currentCameraChunkPosition *= chunkSizeInVoxels;
@@ -439,38 +429,8 @@ int main() {
 				Vector3Int chunkIndex = { i, j, k };
 				Vector3 chunkPosition = chunkIndex * chunkSizeInVoxels;
 
-				Vector3 curChunkCentrePosition = chunkPosition + halfChunkSize;
-
-				float xDist = (currentCameraChunkPosition.x - curChunkCentrePosition.x);
-				float zDist = (currentCameraChunkPosition.z - curChunkCentrePosition.z);
-
-				float xDistSign = xDist / abs(xDist);
-				float zDistSign = zDist / abs(zDist);
-
-				xDist = abs(xDist);
-				zDist = abs(zDist);
-
-				int xDistIndex = int(xDist / 32);
-				int zDistIndex = int(zDist / 32);
-
-
-				if (xDist <= 64.0 && zDist <= 64.0) {
-
-					numBucketsPerLOD[0]++;
-				}
-				//else if ((xDist > 256.0 && xDist <= 512.0) || (zDist > 256.0 && zDist <= 512.0)) {
-				else if ((xDist > 256.0) || (zDist > 256.0)) {
-
-					numBucketsPerLOD[3]++;
-				}
-				else if ((xDist > 128.0 && xDist <= 256.0) || (zDist > 128.0 && zDist <= 256.0)) {
-
-					numBucketsPerLOD[2]++;
-				}
-				else if ((xDist > 64.0 && xDist <= 128.0) || (zDist > 64.0 && zDist <= 128.0)) {
-
-					numBucketsPerLOD[1]++;
-				}
+				int LOD_Level = CurChunkLODLevel(chunkIndex, chunkPosition, worldSizeInChunks, halfChunkSize, currentCameraChunkPosition);
+				numBucketsPerLOD[LOD_Level]++;
 			}
 		}
 	}
@@ -541,7 +501,7 @@ int main() {
 	float deltaTime = 0.0f;
 
 	bool freezeCulling = false;
-	bool drawBoundingBox = false;
+	bool drawBoundingBox = true;
 
 	while (!glfwWindowShouldClose(window))
 	{

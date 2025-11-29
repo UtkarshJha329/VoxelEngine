@@ -22,46 +22,77 @@ out vec2 texCoords;
 out flat uint chunkFlattenedIndex;
 
 
+
 	// Top face (Y+)
+//vec3 verticesTopFace[3] = vec3[3](
+//	vec3(-0.5f,  0.5f,  0.5f),	// bottom left
+//	vec3( 1.5f,  0.5f,  0.5f),	// bottom right
+//	vec3(-0.5f,  0.5f, -1.5f)	// top left
+//);
 vec3 verticesTopFace[3] = vec3[3](
-	vec3(-0.5f,  0.5f,  0.5f),	// bottom left
-	vec3( 1.5f,  0.5f,  0.5f),	// bottom right
-	vec3(-0.5f,  0.5f, -1.5f)	// top left
+    vec3(0.0f,   1.0f,  1.0f),   // bottom left
+    vec3(2.0f,   1.0f,  1.0f),   // bottom right
+    vec3(0.0f,   1.0f, -1.0f)    // top left
 );
-
 	// Bottom face (Y-)
+//vec3 verticesBottomFace[3] = vec3[3](
+//	vec3(-0.5f, -0.5f, -0.5f),	// bottom left
+//	vec3( 1.5f, -0.5f, -0.5f),	// bottom right
+//	vec3(-0.5f, -0.5f,  1.5f)	// top left
+//);
 vec3 verticesBottomFace[3] = vec3[3](
-	vec3(-0.5f, -0.5f, -0.5f),	// bottom left
-	vec3( 1.5f, -0.5f, -0.5f),	// bottom right
-	vec3(-0.5f, -0.5f,  1.5f)	// top left
+    vec3(0.0f,  0.0f,  0.0f),    // bottom left
+    vec3(2.0f,  0.0f,  0.0f),    // bottom right
+    vec3(0.0f,  0.0f,  2.0f)     // top left
 );
-
 	 // Left face (X-)
+//vec3 verticesLeftFace[3] = vec3[3](
+//	vec3(-0.5f, -0.5f, -0.5f),	// bottom left
+//	vec3(-0.5f, -0.5f,  1.5f),	// bottom right
+//	vec3(-0.5f,  1.5f, -0.5f)	// top left
+//);
 vec3 verticesLeftFace[3] = vec3[3](
-	vec3(-0.5f, -0.5f, -0.5f),	// bottom left
-	vec3(-0.5f, -0.5f,  1.5f),	// bottom right
-	vec3(-0.5f,  1.5f, -0.5f)	// top left
+    vec3(0.0f,  0.0f,  0.0f),    // bottom left
+    vec3(0.0f,  0.0f,  2.0f),    // bottom right
+    vec3(0.0f,  2.0f,  0.0f)     // top left
 );
 
 	// Right face (X+)
+//vec3 verticesRightFace[3] = vec3[3](
+//	vec3(0.5f, -0.5f,  0.5f),	// bottom left
+//	vec3(0.5f, -0.5f, -1.5f),	// bottom right
+//	vec3(0.5f,  1.5f,  0.5f)	// top left
+//);
 vec3 verticesRightFace[3] = vec3[3](
-	vec3(0.5f, -0.5f,  0.5f),	// bottom left
-	vec3(0.5f, -0.5f, -1.5f),	// bottom right
-	vec3(0.5f,  1.5f,  0.5f)	// top left
+    vec3(1.0f,  0.0f,  1.0f),    // bottom left
+    vec3(1.0f,  0.0f, -1.0f),    // bottom right
+    vec3(1.0f,  2.0f,  1.0f)     // top left
 );
 
 	// Front face (Z+)
+//vec3 verticesFrontFace[3] = vec3[3](
+//	vec3(-0.5f, -0.5f,  0.5f),	// bottom left
+//	vec3( 1.5f, -0.5f,  0.5f),	// bottom right
+//	vec3(-0.5f,  1.5f,  0.5f)	// top left
+//);
+//
 vec3 verticesFrontFace[3] = vec3[3](
-	vec3(-0.5f, -0.5f,  0.5f),	// bottom left
-	vec3( 1.5f, -0.5f,  0.5f),	// bottom right
-	vec3(-0.5f,  1.5f,  0.5f)	// top left
+    vec3(0.0f,  0.0f,  1.0f),    // bottom left
+    vec3(2.0f,  0.0f,  1.0f),    // bottom right
+    vec3(0.0f,  2.0f,  1.0f)     // top left
 );
 
 	// Back face (Z-)
+//vec3 verticesBackFace[3] = vec3[3](
+//	vec3( 0.5f, -0.5f, -0.5f),	// bottom left
+//	vec3(-1.5f, -0.5f, -0.5f),	// bottom right
+//	vec3( 0.5f,  1.5f, -0.5f)	// top left
+//);
+
 vec3 verticesBackFace[3] = vec3[3](
-	vec3( 0.5f, -0.5f, -0.5f),	// bottom left
-	vec3(-1.5f, -0.5f, -0.5f),	// bottom right
-	vec3( 0.5f,  1.5f, -0.5f)	// top left
+    vec3(1.0f,  0.0f,  0.0f),    // bottom left
+    vec3(-1.0f, 0.0f,  0.0f),    // bottom right
+    vec3(1.0f,  2.0f,  0.0f)     // top left
 );
 
 vec2 arbitaryTexCoords[3] = vec2[3](
@@ -130,7 +161,8 @@ void main()
     uint currentInstancePosition = voxelFaceAndPositionData[curVertexDataID];
 
 
-    vec3 voxelLocalPosition = vec3(16) - vec3(0.5);
+//    vec3 voxelLocalPosition = vec3(16) - vec3(0.5);
+    vec3 voxelLocalPosition = vec3(0);
 
 	uint packedChunkCoords = gl_BaseInstance;
 	uint chunkXIndex = (packedChunkCoords & maxChunkLocalCoord);
@@ -156,7 +188,7 @@ void main()
 	currentInstancePosition = currentInstancePosition >> voxelCoordBitShiftBy;
     currentInstancePosition = currentInstancePosition >> voxelCoordBitShiftBy;
 	uint curFace = currentInstancePosition & 7;
-    vec3 vertexPosition = chunkPosition + (voxelLocalPosition) + (GetCurrentVertexBasedOnFaceIndex(curFace) * vec3(xScale, yScale, zScale));
+    vec3 vertexPosition = chunkPosition + (voxelLocalPosition) + ((GetCurrentVertexBasedOnFaceIndex(curFace)) * vec3(xScale, yScale, zScale));
 
     gl_Position = projection * view * model * vec4(vertexPosition, 1.0);
     texCoords = GetCurrentTexCoordBasedOnVertexIDAndCurFace(curFace);
