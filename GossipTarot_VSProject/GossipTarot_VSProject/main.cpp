@@ -39,10 +39,10 @@
 #include "ChunkGeneration.h"
 #include "ChunksVisibilityFromCulling.h"
 
-//extern "C"
-//{
-//	__declspec(dllexport) unsigned long NvOptimusEnablement = 0x00000001;
-//}
+extern "C"
+{
+	__declspec(dllexport) unsigned long NvOptimusEnablement = 0x00000001;
+}
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
@@ -147,6 +147,8 @@ int main() {
 		std::cout << "Failed to initialize GLAD" << std::endl;
 		return -1;
 	}
+
+	glfwSwapInterval(0);
 
 	glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
 	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
@@ -530,6 +532,8 @@ int main() {
 	unsigned int gpu_chunksVisibilityFromCullingDataBindingPoint = 7;
 	ChunksVisiblityFromCulling chunksVisibilityFromCulling(totalNumChunks, gpu_cameraFrustumDataBindingPoint, gpu_chunksVisibilityFromCullingDataBindingPoint);
 
+	// Todo 1 : Compress Mega Voxels Data Array Memory Footprint.
+	// Todo 2 : Block Editing.
 	// Todo 3 : Block types/ block palette.
 	// Todo 4 : Binary Meshing.
 

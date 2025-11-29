@@ -15,6 +15,20 @@ unsigned int GetFlattenedChunkIndexForChunksVoxelsDataPoolMetadatas(const Vector
 	return chunkIndex.y * worldSizeInChunks.x * worldSizeInChunks.z + chunkIndex.z * worldSizeInChunks.x + chunkIndex.x;
 }
 
+void CreateNoiseWithPadding(std::vector<float>& noiseOutput, FastNoise::SmartNode<FastNoise::FractalFBm>& fnFractal, Vector3Int chunkSizeInVoxels, int LOD_Level, unsigned int i, unsigned int j, unsigned int k) {
+	int extraVoxelsOnOneSide = pow(2, LOD_Level);
+	int extraVoxelsTotalPadding = 2 * extraVoxelsOnOneSide;
+
+	noiseOutput.resize((chunkSizeInVoxels.x + extraVoxelsTotalPadding) * (chunkSizeInVoxels.z + extraVoxelsTotalPadding));
+
+	Vector3Int chunkStartWorldPos = Vector3Int{ i * chunkSizeInVoxels.x, j * chunkSizeInVoxels.y, k * chunkSizeInVoxels.z };
+	fnFractal->GenUniformGrid2D(noiseOutput.data()
+		, chunkStartWorldPos.x - extraVoxelsOnOneSide, chunkStartWorldPos.z - extraVoxelsOnOneSide,
+		chunkSizeInVoxels.x + extraVoxelsTotalPadding, chunkSizeInVoxels.z + extraVoxelsTotalPadding,
+		0.002f, 1337);
+
+}
+
 void GenerateChunkAndUploadTo_GPUAndAddToIndirectRenderCommandVectorOn_CPU(const Vector3Int& chunkIndex, std::vector<int>& chunksLODLevel, FastNoise::SmartNode<FastNoise::FractalFBm> fnFractal, const Vector3& currentCameraChunkPosition, const Vector3& halfChunkSize, const Vector3Int& worldSizeInChunks, const Vector3Int& chunkSizeInVoxels, VoxelsDataPool& voxelsDataPool, ChunksPerFaceIndirectDrawCommands& chunksPerFaceIndirectDrawCommands, std::vector<ChunkVoxelsDataPoolMetadata>& chunksVoxelsDataPoolMetadatas, ChunksVoxelsDataPoolMetadata& chunksVoxelsDataPoolMetadata, const Vector3& cameraPosition) {
 
 	int i = chunkIndex.x;
@@ -74,11 +88,8 @@ void GenerateChunkAndUploadTo_GPUAndAddToIndirectRenderCommandVectorOn_CPU(const
 
 		if (shouldCreateChunk) {
 
-			std::vector<float> noiseOutput(chunkSizeInVoxels.x * chunkSizeInVoxels.z);
-
-			Vector3Int chunkStartWorldPos = Vector3Int{ i * chunkSizeInVoxels.x, j * chunkSizeInVoxels.y, k * chunkSizeInVoxels.z };
-			fnFractal->GenUniformGrid2D(noiseOutput.data(), chunkStartWorldPos.x, chunkStartWorldPos.z, chunkSizeInVoxels.x, chunkSizeInVoxels.z, 0.002f, 1337);
-
+			std::vector<float> noiseOutput;
+			CreateNoiseWithPadding(noiseOutput, fnFractal, chunkSizeInVoxels, LOD_Level, i, j, k);
 
 			Vector3Int chunkIndex = Vector3Int{ i, j, k };
 			unsigned int flattenedChunkIndexForVoxelsDataPoolMetadatas = GetFlattenedChunkIndexForChunksVoxelsDataPoolMetadatas(worldSizeInChunks, chunkIndex);
@@ -86,7 +97,6 @@ void GenerateChunkAndUploadTo_GPUAndAddToIndirectRenderCommandVectorOn_CPU(const
 			chunksVoxelsDataPoolMetadatas[flattenedChunkIndexForVoxelsDataPoolMetadatas].packedChunkIndex = chunkIndex.x + (chunkIndex.y << 7) + (chunkIndex.z << 14) + (LOD_Level << 21);
 
 			GenerateChunkVoxelPositionsOnGPUAsSSBOAsTriangleWithVoxelDataPoolForIndirectDrawCommands(noiseOutput, chunkIndex, chunkSizeInVoxels, worldSizeInChunks, LOD_Level, voxelsDataPool, chunksVoxelsDataPoolMetadatas[flattenedChunkIndexForVoxelsDataPoolMetadatas]);
-			//CPU_WriteChunkDataToDrawCommand(chunksVoxelsDataPoolMetadatas[flattenedChunkIndexForVoxelsDataPoolMetadatas], chunksPerFaceIndirectDrawCommands);
 
 			chunksVoxelsDataPoolMetadata.GPU_UploadChunkVoxelsDataPoolMetadatasToTheGPU(flattenedChunkIndexForVoxelsDataPoolMetadatas);
 		}
@@ -104,10 +114,8 @@ void GenerateChunkWithSpecificLODAndUploadTo_GPUAndAddToIndirectRenderCommandVec
 
 		chunksCurrentLODLevel[flattenedChunkIndex] = wantChunkLODLevel;
 
-		std::vector<float> noiseOutput(chunkSizeInVoxels.x * chunkSizeInVoxels.z);
-
-		Vector3Int chunkStartWorldPos = Vector3Int{ i * chunkSizeInVoxels.x, j * chunkSizeInVoxels.y, k * chunkSizeInVoxels.z };
-		fnFractal->GenUniformGrid2D(noiseOutput.data(), chunkStartWorldPos.x, chunkStartWorldPos.z, chunkSizeInVoxels.x, chunkSizeInVoxels.z, 0.002f, 1337);
+		std::vector<float> noiseOutput;
+		CreateNoiseWithPadding(noiseOutput, fnFractal, chunkSizeInVoxels, wantChunkLODLevel, i, j, k);
 
 
 		unsigned int flattenedChunkIndexForVoxelsDataPoolMetadatas = GetFlattenedChunkIndexForChunksVoxelsDataPoolMetadatas(worldSizeInChunks, chunkIndex);
@@ -115,7 +123,6 @@ void GenerateChunkWithSpecificLODAndUploadTo_GPUAndAddToIndirectRenderCommandVec
 		chunksVoxelsDataPoolMetadatas[flattenedChunkIndexForVoxelsDataPoolMetadatas].packedChunkIndex = chunkIndex.x + (chunkIndex.y << 7) + (chunkIndex.z << 14) + (wantChunkLODLevel << 21);
 
 		GenerateChunkVoxelPositionsOnGPUAsSSBOAsTriangleWithVoxelDataPoolForIndirectDrawCommands(noiseOutput, chunkIndex, chunkSizeInVoxels, worldSizeInChunks, wantChunkLODLevel, voxelsDataPool, chunksVoxelsDataPoolMetadatas[flattenedChunkIndexForVoxelsDataPoolMetadatas]);
-		//CPU_WriteChunkDataToDrawCommand(chunksVoxelsDataPoolMetadatas[flattenedChunkIndexForVoxelsDataPoolMetadatas], chunksPerFaceIndirectDrawCommands);
 
 		chunksVoxelsDataPoolMetadata.GPU_UploadChunkVoxelsDataPoolMetadatasToTheGPU(flattenedChunkIndexForVoxelsDataPoolMetadatas);
 	}
