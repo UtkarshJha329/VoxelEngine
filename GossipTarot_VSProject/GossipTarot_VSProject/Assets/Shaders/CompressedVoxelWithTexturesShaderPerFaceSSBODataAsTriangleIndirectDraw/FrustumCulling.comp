@@ -71,6 +71,53 @@ bool DoesChunkLieOnOrInFrustum(vec3 chunkPos, vec3 chunkSizeInVoxels, Frustum cu
     return true;
 }
 
+bool DoesChunkLieOnOrInFrustumPVertex(vec3 chunkPos, vec3 chunkSizeInVoxels, Frustum curFrustum) {
+
+    // Code from gemini
+    // It checks if the closest point on the box to the camera is hidden behind the plane or not.
+
+    // 1. Pre-calculate Center and Extent (Do this once per chunk, or deduce it here)
+    vec3 extent = chunkSizeInVoxels * 0.5f;
+    vec3 center = chunkPos + extent;
+
+    // 2. Load planes into an array for easy unrolling (or keep them separate)
+    // Note: Usually we store planes as vec4(normal.x, normal.y, normal.z, distance) for speed.
+    // Here I adapt to your struct.
+    const Plane planes[5] = {
+        curFrustum.nearPlane, 
+        curFrustum.rightPlane, 
+        curFrustum.leftPlane, 
+        curFrustum.topPlane, 
+        curFrustum.bottomPlane
+    };
+
+    // 3. Iterate Planes
+    for (int i = 0; i < 5; i++) {
+        const Plane p = planes[i];
+
+        // TRANSFORM PLANE:
+        // Standard plane equation: dot(point, normal) + d = 0
+        // Your plane has a point, so d = -dot(p.pointOnPlane, p.normal)
+        // You should pre-calculate 'd' for your frustum planes once per frame!
+        float d = -dot(p.pointOnPlane, p.normal);
+
+        // A. Distance from plane to box center
+        float distToCenter = dot(center, p.normal) + d;
+
+        // B. Projected Radius (The size of the box along the normal)
+        // We use abs() because we want the maximum extent in the direction of the normal
+        float radius = dot(extent, abs(p.normal));
+
+        // C. The Test
+        // If the center is behind the plane by more than the radius, it's culled.
+        if (distToCenter + radius < 0.0f) {
+            return false; // Behind this plane
+        }
+    }
+
+    return true; // Visible (or intersecting)
+}
+
 
 void main(void) {
 
@@ -89,6 +136,8 @@ void main(void) {
     vec3 chunkPos = vec3(chunkXIndex, chunkYIndex, chunkZIndex) * chunkSizeInVoxels;
 
     if (DoesChunkLieOnOrInFrustum(chunkPos, chunkSizeInVoxels, cameraFrustumData)){
+//    if (DoesChunkLieOnOrInFrustumPVertex(chunkPos, chunkSizeInVoxels, cameraFrustumData)){
+//    if (DoesChunkLieOnOrInFrustumPVertex(chunkPos - vec3(16), chunkSizeInVoxels + vec3(32), cameraFrustumData)){
         chunksVisibilityData[gl_GlobalInvocationID.x] = 1;
     } else {
         chunksVisibilityData[gl_GlobalInvocationID.x] = 0;

@@ -530,7 +530,6 @@ int main() {
 	unsigned int gpu_chunksVisibilityFromCullingDataBindingPoint = 7;
 	ChunksVisiblityFromCulling chunksVisibilityFromCulling(totalNumChunks, gpu_cameraFrustumDataBindingPoint, gpu_chunksVisibilityFromCullingDataBindingPoint);
 
-	// Todo 2 : Occlusion Culling.
 	// Todo 3 : Block types/ block palette.
 	// Todo 4 : Binary Meshing.
 

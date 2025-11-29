@@ -366,9 +366,7 @@ void RenderMeshOnGPUWithDrawElementsIndirectCommandsWithComputeShaderAndCullingC
 			glDepthMask(GL_FALSE);
 			glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
 
-			//glEnable(GL_BLEND);
-			//glBlendEquation(GL_FUNC_ADD);
-			//glBlendFunc(GL_ONE, GL_ONE);
+			glDisable(GL_CULL_FACE);
 
 			glMultiDrawElementsIndirectCount(
 				GL_TRIANGLES,
@@ -383,7 +381,7 @@ void RenderMeshOnGPUWithDrawElementsIndirectCommandsWithComputeShaderAndCullingC
 
 			glDepthMask(GL_TRUE);
 			glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-
+			glEnable(GL_CULL_FACE);
 		}
 	}
 
