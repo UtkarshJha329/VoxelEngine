@@ -144,12 +144,6 @@
     <ClInclude Include="CommonChunkBoundingMesh.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="TSMap.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="TSUnorderedMap.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="VoxelSliceAllocator.h">
       <Filter>Header Files</Filter>
     </ClInclude>

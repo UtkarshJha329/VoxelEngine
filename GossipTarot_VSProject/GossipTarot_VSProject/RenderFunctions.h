@@ -185,6 +185,7 @@ void RenderMeshOnGPUWithDrawElementsIndirectCommandsWithComputeShaderAndCullingC
 	//glDepthFunc(GL_LESS);
 	glDepthFunc(GL_LEQUAL);
 
+	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
 	// Run Indirect Draw Compute Shader On Vissible Chunks
 	glUseProgram(voxelsIndirectDrawComputShader.shaderProgramID);

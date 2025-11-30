@@ -1,11 +1,11 @@
 #pragma once
 
 #include <unordered_map>
-#include <vector>
 #include <utility>
+
+#include <map>
 #include <mutex>
 
-#include "TSQueue.h"
 
 #include "glad/glad.h"
 
@@ -15,48 +15,29 @@ class VoxelsDataPool {
 
 public:
 
-	unsigned int numVoxelsPerFaceClassifications;
-	std::vector<unsigned int> NumVoxelPerFaceClassification;
-
-	std::vector<unsigned int> currentFaceClassficationOffsetIntoMegaVoxelsArrayInBytes;
+	struct FreeBucket {
+		unsigned int indexOffsetIntoMegaArray;
+		unsigned int sizeInIndexCountInMegaArray;
+	};
 
 	unsigned int megaVoxelsPerFaceDataBufferObjectID;
 	unsigned int megaVoxelsPerFaceDataBufferObjectBindingLocation;
 
 	uint32_t* megaVoxelsPerFaceDataBufferGPUPointer;
 
+	const unsigned int numVoxelsDataToStore = 300000;
 	size_t sizeOfPoolInBytes;
 
-	std::vector<TSQueue<unsigned int>> freeDataBucketsPerLODPositionInMegaVoxelsArray;
-
+	std::unordered_map<unsigned int, unsigned int> usedBucketsIndexAndSize;
+	std::map<unsigned int, unsigned int> freeBucketsSortedByPositionInMegaArray;
 	std::mutex m_mutex;
 
 	VoxelsDataPool(unsigned int _numVoxelsPerFaceClassifications, std::vector<unsigned int> _NumVoxelPerFaceClassification, std::vector<unsigned int> numBucketsPerClassification, unsigned int _megaVoxelsPerFaceDataBufferObjectBindingLocation) {
 
-		numVoxelsPerFaceClassifications = _numVoxelsPerFaceClassifications;
-		NumVoxelPerFaceClassification = _NumVoxelPerFaceClassification;
-
-		currentFaceClassficationOffsetIntoMegaVoxelsArrayInBytes.resize(numVoxelsPerFaceClassifications);
-		freeDataBucketsPerLODPositionInMegaVoxelsArray.resize(numVoxelsPerFaceClassifications);
-
-		sizeOfPoolInBytes = 0;
-		for (int i = 0; i < numVoxelsPerFaceClassifications; i++)
-		{
-			currentFaceClassficationOffsetIntoMegaVoxelsArrayInBytes[i] = sizeOfPoolInBytes;
-
-			size_t _sizeOfBucketInBytes = sizeof(unsigned int) * NumVoxelPerFaceClassification[i];
-			sizeOfPoolInBytes += _sizeOfBucketInBytes * numBucketsPerClassification[i];
-		}
+		megaVoxelsPerFaceDataBufferObjectBindingLocation = _megaVoxelsPerFaceDataBufferObjectBindingLocation;
+		sizeOfPoolInBytes = numVoxelsDataToStore * sizeof(unsigned int);
 
 		glCreateBuffers(1, &megaVoxelsPerFaceDataBufferObjectID);
-
-		//numVoxelDataPerBucket = _numVoxelDataPerBucket;
-		//numBuckets = _numBuckets;
-
-		megaVoxelsPerFaceDataBufferObjectBindingLocation = _megaVoxelsPerFaceDataBufferObjectBindingLocation;
-
-		//sizeOfBucketInBytes = sizeof(unsigned int) * numVoxelDataPerBucket;
-		//sizeOfPoolInBytes =  sizeOfBucketInBytes * numBuckets;
 
 		glNamedBufferStorage(megaVoxelsPerFaceDataBufferObjectID, sizeOfPoolInBytes, nullptr,
 			GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
@@ -67,14 +48,7 @@ public:
 		);
 		megaVoxelsPerFaceDataBufferGPUPointer = reinterpret_cast<uint32_t*>(mappedPointerToBuffer);
 
-		for (unsigned int i = 0; i < numVoxelsPerFaceClassifications; i++)
-		{
-			for (unsigned int j = 0; j < numBucketsPerClassification[i]; j++)
-			{
-				size_t currentBucketOffsetInBytes = currentFaceClassficationOffsetIntoMegaVoxelsArrayInBytes[i] + (j * NumVoxelPerFaceClassification[i] * sizeof(unsigned int));
-				freeDataBucketsPerLODPositionInMegaVoxelsArray[i].push(currentBucketOffsetInBytes / (sizeof(unsigned int)));
-			}
-		}
+		freeBucketsSortedByPositionInMegaArray.insert({0, numVoxelsDataToStore});
 	}
 
 	~VoxelsDataPool() {
@@ -100,40 +74,115 @@ public:
 
 	}
 
-	void MakeBucketAFreeBucket(const unsigned int& bucketIndexToFree, const unsigned int& numVoxelsPerFace) {
+	//void MakeBucketAFreeBucket(const unsigned int& bucketIndexToFree) {
+	void MakeBucketAFreeBucket(FaceVoxelsDataPoolMetadata& curFaceVoxelDataPoolMetadata) {
 
-		int currentClassificationIndex = VoxelPerFaceClassificationIndex(numVoxelsPerFace);
-		freeDataBucketsPerLODPositionInMegaVoxelsArray[currentClassificationIndex].push(bucketIndexToFree);
-	}
+		std::lock_guard<std::mutex> lock(m_mutex);
 
-	int VoxelPerFaceClassificationIndex(const unsigned int& curNumVoxelsPerFace) {
+		auto it = usedBucketsIndexAndSize.find(curFaceVoxelDataPoolMetadata.voxelDataBucketOffsetIntoMegaArrayIndex);
+		if (it != usedBucketsIndexAndSize.end()) {
 
-		for (int i = 0; i < numVoxelsPerFaceClassifications; i++)
-		{
-			if (curNumVoxelsPerFace < NumVoxelPerFaceClassification[i]) {
+			FreeBucket newBucket = { curFaceVoxelDataPoolMetadata.voxelDataBucketOffsetIntoMegaArrayIndex, usedBucketsIndexAndSize[curFaceVoxelDataPoolMetadata.voxelDataBucketOffsetIntoMegaArrayIndex] };
 
-				//std::cout << "Num Voxels for Face : " << curNumVoxelsPerFace << " Assigned to Index : " << i << " with total capacity : " << NumVoxelPerFaceClassification[i] << std::endl;
+			/// GO BACK
+			/// AND TEST 
+			/// number face bucket properly with unordered map for num voxels for index and not WRONGLY input lod.
 
-				return i;
-			}
+			freeBucketsSortedByPositionInMegaArray.insert({ newBucket.indexOffsetIntoMegaArray, newBucket.sizeInIndexCountInMegaArray });
+			//auto itFB = freeBucketsSortedByPositionInMegaArray.begin();
+			//while (itFB != freeBucketsSortedByPositionInMegaArray.end() && itFB->indexOffsetIntoMegaArray < newBucket.indexOffsetIntoMegaArray) {
+			//	itFB++;
+			//}
+			//freeBucketsSortedByPositionInMegaArray.insert(itFB, newBucket);
+
+			usedBucketsIndexAndSize.erase(curFaceVoxelDataPoolMetadata.voxelDataBucketOffsetIntoMegaArrayIndex);
+
+			curFaceVoxelDataPoolMetadata.numVoxelDataInBucket = 0;
+
+			//std::cout << "D : " << curFaceVoxelDataPoolMetadata.voxelDataBucketOffsetIntoMegaArrayIndex << ", numVoxels : " << newBucket.sizeInIndexCountInMegaArray << std::endl;
+
+			Defrag();
+		}
+		else {
+			std::cout << "Trying to free bucket that was not in use : " << curFaceVoxelDataPoolMetadata.voxelDataBucketOffsetIntoMegaArrayIndex << std::endl;
 		}
 
-		return -1;
 	}
 
 private:
 
 	bool GetFreeBucket(unsigned int& freePoolOffsetInMegaVoxelsArrayIndex, const unsigned int& numVoxelsPerFace) {
 
-		int currentClassificationIndex = VoxelPerFaceClassificationIndex(numVoxelsPerFace);
+		if (numVoxelsPerFace > 0) {
 
-		std::lock_guard<std::mutex> lock(m_mutex);
-		if (!freeDataBucketsPerLODPositionInMegaVoxelsArray[currentClassificationIndex].empty()) {
-			freePoolOffsetInMegaVoxelsArrayIndex = freeDataBucketsPerLODPositionInMegaVoxelsArray[currentClassificationIndex].pop();
-			return true;
+			std::lock_guard<std::mutex> lock(m_mutex);
+
+			if (!freeBucketsSortedByPositionInMegaArray.empty()) {
+				auto it = freeBucketsSortedByPositionInMegaArray.begin();
+
+				while (it != freeBucketsSortedByPositionInMegaArray.end()) {
+					if (it->second > numVoxelsPerFace) {
+
+						freePoolOffsetInMegaVoxelsArrayIndex = it->first;
+
+						unsigned int remainingSize = it->second - numVoxelsPerFace;
+
+						it = freeBucketsSortedByPositionInMegaArray.erase(it);
+						freeBucketsSortedByPositionInMegaArray.insert({ freePoolOffsetInMegaVoxelsArrayIndex + numVoxelsPerFace, remainingSize });
+
+						//std::cout << "Created by SPLITTING LARGE BLOCK : " << freePoolOffsetInMegaVoxelsArrayIndex  << ", " << numVoxelsPerFace << std::endl;
+
+						usedBucketsIndexAndSize.insert({ freePoolOffsetInMegaVoxelsArrayIndex, numVoxelsPerFace });
+
+						return true;
+					}
+					else if (it->second == numVoxelsPerFace) {
+						freePoolOffsetInMegaVoxelsArrayIndex = it->first;
+
+						freeBucketsSortedByPositionInMegaArray.erase(it);
+
+						//std::cout << "Created by DELETING BLOCK : " << freePoolOffsetInMegaVoxelsArrayIndex << ", " << numVoxelsPerFace << std::endl;
+						usedBucketsIndexAndSize.insert({ freePoolOffsetInMegaVoxelsArrayIndex, numVoxelsPerFace });
+
+						return true;
+
+					}
+					else {
+						it++;
+					}
+				}
+
+				std::cout << "Failed to find bucket with valid size." << std::endl;
+
+				return false;
+			}
+
+			return false;
 		}
+	}
 
-		return false;
+	void Defrag() {
+		
+		unsigned int numDefragItterations = 10;
+		for (int i = 0; i < numDefragItterations; i++)
+		{
+			auto current_it = freeBucketsSortedByPositionInMegaArray.begin();
+			current_it++;
+
+			while (current_it != freeBucketsSortedByPositionInMegaArray.end()) {
+
+				auto prev_it = std::prev(current_it);
+				if (prev_it->first + prev_it->second == current_it->first) {
+
+					prev_it->second += current_it->second;
+
+					current_it = freeBucketsSortedByPositionInMegaArray.erase(current_it);
+
+					current_it--;
+				}
+				current_it++;
+			}
+		}
 	}
 
 };
