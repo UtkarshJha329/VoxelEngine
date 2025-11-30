@@ -400,10 +400,11 @@ int main() {
 
 
 	// VVV LIMITED BY COMPRESSION TO INT IN PACKED CHUNK INDEX AND NUMBER OF COMPUTE THREADS DISPATCHED! Currently limited by each coordinate having 7 bits, i.e max 127 for each coord but with compute threads dispatched it is limited to __.
-	Vector3Int worldSizeInChunks = { 120, 16, 120 };
-	//Vector3Int worldSizeInChunks = { 96, 16, 96 };
+	//Vector3Int worldSizeInChunks = { 120, 16, 120 };
+	Vector3Int worldSizeInChunks = { 96, 16, 96 };
 	//Vector3Int worldSizeInChunks = { 64, 16, 64 };
 	//Vector3Int worldSizeInChunks = { 32, 16, 32 };
+	//Vector3Int worldSizeInChunks = { 16, 16, 16 };
 	//Vector3Int worldSizeInChunks = { 4, 2, 4 };
 	//Vector3Int chunkSizeInVoxels = { 32, 32, 32 };
 	Vector3Int chunkSizeInVoxels = { 64, 64, 64 };
@@ -422,7 +423,34 @@ int main() {
 
 	size_t sizeOfPoolInBytes = numBuckets * numVoxelDatasPerBucket * sizeof(unsigned int);
 
-	VoxelsDataPool voxelsDataPool(megaVoxelsPerFaceDataBufferObjectBindingLocation);
+	const unsigned int numVoxelsPerFaceClassifications = 10;
+
+	std::vector<unsigned int> NumVoxelPerFaceClassification = {
+		5,
+		20,
+		50,
+		100,
+		500,
+		1000,
+		2000,
+		5000,
+		6000,
+		7000
+	};
+
+	std::vector<unsigned int> numBucketsPerClassification = {
+		70000,
+		70000,
+		70000,
+		25000,
+		40000,
+		30000,
+		5000,
+		5000,
+		5000,
+		100
+	};
+	VoxelsDataPool voxelsDataPool(numVoxelsPerFaceClassifications, NumVoxelPerFaceClassification, numBucketsPerClassification, megaVoxelsPerFaceDataBufferObjectBindingLocation);
 
 
 	unsigned int numFaces = worldSizeInChunks.x * worldSizeInChunks.y * worldSizeInChunks.z * 6;
@@ -492,7 +520,7 @@ int main() {
 		float moveSpeed = 3.0f;
 
 		if (GetKeyHeld(KeyCode::KEY_SPACE)) {
-			moveSpeed = 30.0f + pow(10, deltaTime);
+			moveSpeed +=100.0f;
 		}
 		else if (GetKeyReleasedInThisFrame(KeyCode::KEY_SPACE)) {
 			moveSpeed = 3.0f;
@@ -709,3 +737,4 @@ int main() {
 	glfwTerminate();
 	return 0;
 }
+
