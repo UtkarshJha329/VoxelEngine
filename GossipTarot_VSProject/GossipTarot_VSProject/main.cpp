@@ -450,7 +450,8 @@ int main() {
 		5000,
 		100
 	};
-	VoxelsDataPool voxelsDataPool(numVoxelsPerFaceClassifications, NumVoxelPerFaceClassification, numBucketsPerClassification, megaVoxelsPerFaceDataBufferObjectBindingLocation);
+	//VoxelsDataPool voxelsDataPool(numVoxelsPerFaceClassifications, NumVoxelPerFaceClassification, numBucketsPerClassification, megaVoxelsPerFaceDataBufferObjectBindingLocation);
+	VoxelsDataPool voxelsDataPool(megaVoxelsPerFaceDataBufferObjectBindingLocation);
 
 
 	unsigned int numFaces = worldSizeInChunks.x * worldSizeInChunks.y * worldSizeInChunks.z * 6;
@@ -640,12 +641,6 @@ int main() {
 
 						chunksVoxelsDataPoolMetadatas.GPU_UploadChunkVoxelsDataPoolMetadatasToTheGPU(flattenedChunkIndex);
 
-					}
-
-					//numGeneratingChunks.store(newChunkLODLevels.size());
-
-					for (int i = 0; i < newChunkLODLevels.size(); i++)
-					{
 						chunkGenerationFutures.push_back(std::async(
 							std::launch::async,
 							GenerateChunkAndUploadTo_GPUAndAddToIndirectRenderCommandVectorOn_CPU,
@@ -661,7 +656,12 @@ int main() {
 							std::ref(chunksPerFaceIndirectDrawCommands),
 							std::ref(chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas),
 							std::ref(chunksVoxelsDataPoolMetadatas)));
+
 					}
+
+					//for (int i = 0; i < newChunkLODLevels.size(); i++)
+					//{
+					//}
 				}
 			}
 

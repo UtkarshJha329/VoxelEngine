@@ -199,6 +199,7 @@
     <ClInclude Include="TextureUtils.h" />
     <ClInclude Include="Transform.h" />
     <ClInclude Include="TSQueue.h" />
+    <ClInclude Include="TSUnorderedMap.h" />
     <ClInclude Include="UIRect.h" />
     <ClInclude Include="UISimulation.h" />
     <ClInclude Include="UIText.h" />
