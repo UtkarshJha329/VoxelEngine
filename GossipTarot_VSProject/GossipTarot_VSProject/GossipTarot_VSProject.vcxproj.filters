@@ -135,16 +135,10 @@
     <ClInclude Include="ChunksVoxelsDataPoolMetadata.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="TSQueue.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="ChunksVisibilityFromCulling.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="CommonChunkBoundingMesh.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="VoxelSliceAllocator.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

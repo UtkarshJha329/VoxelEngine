@@ -401,82 +401,28 @@ int main() {
 
 
 	// VVV LIMITED BY COMPRESSION TO INT IN PACKED CHUNK INDEX AND NUMBER OF COMPUTE THREADS DISPATCHED! Currently limited by each coordinate having 7 bits, i.e max 127 for each coord but with compute threads dispatched it is limited to __.
-	//Vector3Int worldSizeInChunks = { 96, 16, 96 };
+	//Vector3Int worldSizeInChunks = { 120, 16, 120 };
+	Vector3Int worldSizeInChunks = { 96, 16, 96 };
 	//Vector3Int worldSizeInChunks = { 64, 16, 64 };
-	Vector3Int worldSizeInChunks = { 32, 16, 32 };
+	//Vector3Int worldSizeInChunks = { 32, 16, 32 };
 	//Vector3Int worldSizeInChunks = { 4, 2, 4 };
 	Vector3Int chunkSizeInVoxels = { 32, 32, 32 };
 
 	Vector3Int centreVoxelPositionInWorld = { (worldSizeInChunks.x * chunkSizeInVoxels.x) / 2, (worldSizeInChunks.y * chunkSizeInVoxels.y) / 2, (worldSizeInChunks.z * chunkSizeInVoxels.z) / 2 };
 	cameraTransform.position = { centreVoxelPositionInWorld.x, centreVoxelPositionInWorld.y, centreVoxelPositionInWorld.z };
 
-
-	const unsigned int numVoxelsPerFaceClassifications = 7;
-
-	unsigned int numVoxelDatasOnLOD_Zero_Bucket = (chunkSizeInVoxels.x / 2) * (chunkSizeInVoxels.y / 2) * (chunkSizeInVoxels.z / 2);
-	std::vector<unsigned int> NumVoxelPerFaceClassification = {
-		10,
-		50,
-		100,
-		500,
-		1000,
-		2000,
-		5000
-	};
-
-	unsigned int totalNumChunks = worldSizeInChunks.x * worldSizeInChunks.y * worldSizeInChunks.z;
-	std::vector<unsigned int> numBucketsPerClassification = {
-		70000,
-		70000,
-		25000,
-		40000,
-		30000,
-		3000,
-		100
-	};
-
 	Vector3 currentCameraChunkPosition = Vector3(int(cameraTransform.position.x / (chunkSizeInVoxels.x)), 0.0, int(cameraTransform.position.z / (chunkSizeInVoxels.z)));
 	currentCameraChunkPosition *= chunkSizeInVoxels;
 	Vector3 halfChunkSize = Vector3(chunkSizeInVoxels / 2);
+	unsigned int totalNumChunks = worldSizeInChunks.x * worldSizeInChunks.y * worldSizeInChunks.z;
 
-	for (int j = 0; j < worldSizeInChunks.y; j++)
-	{
-		for (int k = 0; k < worldSizeInChunks.z; k++)
-		{
-			for (int i = 0; i < worldSizeInChunks.x; i++)
-			{
-				Vector3Int chunkIndex = { i, j, k };
-				Vector3 chunkPosition = chunkIndex * chunkSizeInVoxels;
-
-				int LOD_Level = CurChunkLODLevel(chunkIndex, chunkPosition, worldSizeInChunks, halfChunkSize, currentCameraChunkPosition);
-			}
-		}
-	}
-
-	//for (int i = 0; i < numLODLevels; i++)
-	//{
-	//	LODLevelAndChunksMaxSizeInVoxels[i] /= unsigned int(pow(2, i));
-	//	numBucketsPerLOD[i] *= 6;
-	//	numBucketsPerLOD[i] /= 4;
-	//	numBucketsPerLOD[i] += 100;
-	//}	
-
-	//for (int i = 0; i < numLODLevels; i++)
-	//{
-	//	std::cout << "LOD " << i << " NUM : " << numBucketsPerLOD[i] << std::endl;
-	//}
-
-	//numBucketsPerLOD[4] = (totalNumChunks * 6);
-
-	//unsigned int numVoxelDatasPerBucket = (chunkSizeInVoxels.x / 2) * (chunkSizeInVoxels.y / 2) * (chunkSizeInVoxels.z / 2);
 	unsigned int numVoxelDatasPerBucket = (chunkSizeInVoxels.x / 2) * (chunkSizeInVoxels.y / 2) * (chunkSizeInVoxels.z / 2);
 	unsigned int numBuckets = worldSizeInChunks.x * worldSizeInChunks.y * worldSizeInChunks.z * 6;
 	unsigned int megaVoxelsPerFaceDataBufferObjectBindingLocation = 2;
 
 	size_t sizeOfPoolInBytes = numBuckets * numVoxelDatasPerBucket * sizeof(unsigned int);
 
-	//VoxelsDataPool voxelsDataPool(numLODLevels, LODLevelAndChunksMaxSizeInVoxels, numBucketsPerLOD, megaVoxelsPerFaceDataBufferObjectBindingLocation);
-	VoxelsDataPool voxelsDataPool(numVoxelsPerFaceClassifications, NumVoxelPerFaceClassification, numBucketsPerClassification, megaVoxelsPerFaceDataBufferObjectBindingLocation);
+	VoxelsDataPool voxelsDataPool(megaVoxelsPerFaceDataBufferObjectBindingLocation);
 
 
 	unsigned int numFaces = worldSizeInChunks.x * worldSizeInChunks.y * worldSizeInChunks.z * 6;
@@ -517,18 +463,11 @@ int main() {
 	unsigned int gpu_chunksVisibilityFromCullingDataBindingPoint = 7;
 	ChunksVisiblityFromCulling chunksVisibilityFromCulling(totalNumChunks, gpu_cameraFrustumDataBindingPoint, gpu_chunksVisibilityFromCullingDataBindingPoint);
 
-	//std::cout << voxelsDataPool.currentFreeHeadOffsetIntoMegaArray << ", " << voxelsDataPool.numFacesOfChunksGenerated << std::endl;
-	//std::cout << voxelsDataPool.voxelSliceAllocator.allocationNextFrom << ", " << voxelsDataPool.numFacesOfChunksGenerated << std::endl;
-	//std::cout << voxelsDataPool.threeThousandSeen << ", " << voxelsDataPool.thousandSeen << ", " << voxelsDataPool.hundredSeen << ", " << voxelsDataPool.fiftySeen << ", " << voxelsDataPool.tenSeen << std::endl;
-	//std::cout << voxelsDataPool.lod0Seen << ", " << voxelsDataPool.lod1Seen << ", " << voxelsDataPool.lod2Seen << ", " << voxelsDataPool.lod3Seen << ", " << voxelsDataPool.lod4Seen << std::endl;
-
-	//std::cout << "Average num voxels per face : " << float(voxelsDataPool.currentFreeHeadOffsetIntoMegaArray) / float(voxelsDataPool.numFacesOfChunksGenerated) << std::endl;
-	//std::cout << "Average num voxels per face : " << float(voxelsDataPool.voxelSliceAllocator.allocationNextFrom) / float(voxelsDataPool.numFacesOfChunksGenerated) << std::endl;
-
-	// Todo 1 : Compress Mega Voxels Data Array Memory Footprint.
+	
 	// Todo 2 : Block Editing.
 	// Todo 3 : Block types/ block palette.
 	// Todo 4 : Binary Meshing.
+	// Todo 1 : Don't persistent map entire mega array, use smaller ararys and then issue copy command on gpu.
 
 	std::chrono::time_point<std::chrono::high_resolution_clock> lastFrameEndTime = std::chrono::high_resolution_clock::now();
 	float deltaTime = 0.0f;
@@ -573,10 +512,6 @@ int main() {
 				cameraTransform.rotation.x = -90.0f;
 
 			Vector3 cameraFront = Vector3{ 0.0f, 0.0f, 1.0f };
-
-			//glm::quat rotQuat = glm::quat(glm::radians(cameraTransform.rotation));
-			//Mat4x4 rotationMatrix = glm::mat4_cast(rotQuat);
-			//cameraFront = glm::vec3(rotationMatrix * glm::vec4(cameraFront, 1.0f));
 
 			glm::quat rotQuat = glm::quat(glm::radians(cameraTransform.rotation));
 			cameraFront = normalize(rotQuat * glm::vec3(0, 0, 1));
@@ -655,27 +590,22 @@ int main() {
 						}
 						if (chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas[flattenedChunkIndex].bottomFaceVoxelsDataPoolMetadata.numVoxelDataInBucket > 0) {
 							unsigned int chunksCurrentBottomFaceBucketIndex = chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas[flattenedChunkIndex].bottomFaceVoxelsDataPoolMetadata.voxelDataBucketOffsetIntoMegaArrayIndex;
-							//voxelsDataPool.MakeBucketAFreeBucket(chunksCurrentBottomFaceBucketIndex);
 							voxelsDataPool.MakeBucketAFreeBucket(chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas[flattenedChunkIndex].bottomFaceVoxelsDataPoolMetadata);
 						}
 						if (chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas[flattenedChunkIndex].frontFaceVoxelsDataPoolMetadata.numVoxelDataInBucket > 0) {
 							unsigned int chunksCurrentFrontFaceBucketIndex = chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas[flattenedChunkIndex].frontFaceVoxelsDataPoolMetadata.voxelDataBucketOffsetIntoMegaArrayIndex;
-							//voxelsDataPool.MakeBucketAFreeBucket(chunksCurrentFrontFaceBucketIndex);
 							voxelsDataPool.MakeBucketAFreeBucket(chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas[flattenedChunkIndex].frontFaceVoxelsDataPoolMetadata);
 						}
 						if (chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas[flattenedChunkIndex].backFaceVoxelsDataPoolMetadata.numVoxelDataInBucket > 0) {
 							unsigned int chunksCurrentBackFaceBucketIndex = chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas[flattenedChunkIndex].backFaceVoxelsDataPoolMetadata.voxelDataBucketOffsetIntoMegaArrayIndex;
-							//voxelsDataPool.MakeBucketAFreeBucket(chunksCurrentBackFaceBucketIndex);
 							voxelsDataPool.MakeBucketAFreeBucket(chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas[flattenedChunkIndex].backFaceVoxelsDataPoolMetadata);
 						}
 						if (chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas[flattenedChunkIndex].leftFaceVoxelsDataPoolMetadata.numVoxelDataInBucket > 0) {
 							unsigned int chunksCurrentLeftFaceBucketIndex = chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas[flattenedChunkIndex].leftFaceVoxelsDataPoolMetadata.voxelDataBucketOffsetIntoMegaArrayIndex;
-							//voxelsDataPool.MakeBucketAFreeBucket(chunksCurrentLeftFaceBucketIndex);
 							voxelsDataPool.MakeBucketAFreeBucket(chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas[flattenedChunkIndex].leftFaceVoxelsDataPoolMetadata);
 						}
 						if (chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas[flattenedChunkIndex].rightFaceVoxelsDataPoolMetadata.numVoxelDataInBucket > 0) {
 							unsigned int chunksCurrentRightFaceBucketIndex = chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas[flattenedChunkIndex].rightFaceVoxelsDataPoolMetadata.voxelDataBucketOffsetIntoMegaArrayIndex;
-							//voxelsDataPool.MakeBucketAFreeBucket(chunksCurrentRightFaceBucketIndex);
 							voxelsDataPool.MakeBucketAFreeBucket(chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas[flattenedChunkIndex].rightFaceVoxelsDataPoolMetadata);
 						}
 
@@ -704,20 +634,6 @@ int main() {
 							std::ref(chunksVoxelsDataPoolMetadatas),
 							cameraTransform.position));
 					}
-
-
-					//for (auto& future : chunkGenerationFutures)
-					//{
-					//	try {
-					//		if (future.valid())
-					//			future.get();
-					//	}
-					//	catch (std::future_error& e) {
-					//		std::cout << "future_error: " << e.code() << " - " << e.what() << "\n";
-					//	}
-
-					//}
-					//chunkGenerationFutures.clear();
 				}
 			}
 
@@ -731,20 +647,6 @@ int main() {
 		glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-
-		// Render World Geometry
-		//RenderMeshOnGPUWithDrawElementsIndirectCommandsWithComputeShader(
-		//	voxelVertexAndFragmentWithCameraWithTexturesPerFaceSSBODataAsTriangleIndirectDrawShaderProgram,
-		//	voxelBackfaceCullingComputeShaderProgram,
-		//	cameraTransform, mainCamera,
-		//	modelTransform.GetTransformMatrix(),
-		//	stickmanTextureIndex,
-		//	worldSizeInChunks,
-		//	commonChunkMeshOnGPU,
-		//	chunksPerFaceIndirectDrawCommands,
-		//	voxelsDataPool,
-		//	chunksVoxelsDataPoolMetadatas
-		//);
 
 		RenderMeshOnGPUWithDrawElementsIndirectCommandsWithComputeShaderAndCullingComputeShader(
 			voxelVertexAndFragmentWithCameraWithTexturesPerFaceSSBODataAsTriangleIndirectDrawShaderProgram,

@@ -198,14 +198,12 @@
     <ClInclude Include="Texture.h" />
     <ClInclude Include="TextureUtils.h" />
     <ClInclude Include="Transform.h" />
-    <ClInclude Include="TSQueue.h" />
     <ClInclude Include="UIRect.h" />
     <ClInclude Include="UISimulation.h" />
     <ClInclude Include="UIText.h" />
     <ClInclude Include="Viewport.h" />
     <ClInclude Include="VoxelFunctions.h" />
     <ClInclude Include="VoxelsDataPool.h" />
-    <ClInclude Include="VoxelSliceAllocator.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

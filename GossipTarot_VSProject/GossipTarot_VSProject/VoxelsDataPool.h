@@ -25,14 +25,14 @@ public:
 
 	uint32_t* megaVoxelsPerFaceDataBufferGPUPointer;
 
-	const unsigned int numVoxelsDataToStore = 300000;
+	const unsigned int numVoxelsDataToStore = 50000000;
 	size_t sizeOfPoolInBytes;
 
 	std::unordered_map<unsigned int, unsigned int> usedBucketsIndexAndSize;
 	std::map<unsigned int, unsigned int> freeBucketsSortedByPositionInMegaArray;
 	std::mutex m_mutex;
 
-	VoxelsDataPool(unsigned int _numVoxelsPerFaceClassifications, std::vector<unsigned int> _NumVoxelPerFaceClassification, std::vector<unsigned int> numBucketsPerClassification, unsigned int _megaVoxelsPerFaceDataBufferObjectBindingLocation) {
+	VoxelsDataPool(unsigned int _megaVoxelsPerFaceDataBufferObjectBindingLocation) {
 
 		megaVoxelsPerFaceDataBufferObjectBindingLocation = _megaVoxelsPerFaceDataBufferObjectBindingLocation;
 		sizeOfPoolInBytes = numVoxelsDataToStore * sizeof(unsigned int);
@@ -117,7 +117,9 @@ private:
 
 			std::lock_guard<std::mutex> lock(m_mutex);
 
-			if (!freeBucketsSortedByPositionInMegaArray.empty()) {
+
+
+			while (!freeBucketsSortedByPositionInMegaArray.empty()) {
 				auto it = freeBucketsSortedByPositionInMegaArray.begin();
 
 				while (it != freeBucketsSortedByPositionInMegaArray.end()) {
@@ -153,8 +155,7 @@ private:
 				}
 
 				std::cout << "Failed to find bucket with valid size." << std::endl;
-
-				return false;
+				DefragUntilSize(numVoxelsPerFace);
 			}
 
 			return false;
@@ -163,7 +164,7 @@ private:
 
 	void Defrag() {
 		
-		unsigned int numDefragItterations = 10;
+		unsigned int numDefragItterations = 1;
 		for (int i = 0; i < numDefragItterations; i++)
 		{
 			auto current_it = freeBucketsSortedByPositionInMegaArray.begin();
@@ -179,6 +180,33 @@ private:
 					current_it = freeBucketsSortedByPositionInMegaArray.erase(current_it);
 
 					current_it--;
+				}
+				current_it++;
+			}
+		}
+	}
+
+	void DefragUntilSize(unsigned int sizeNeeded) {
+
+		while (true)
+		{
+			auto current_it = freeBucketsSortedByPositionInMegaArray.begin();
+			current_it++;
+
+			while (current_it != freeBucketsSortedByPositionInMegaArray.end()) {
+
+				auto prev_it = std::prev(current_it);
+				if (prev_it->first + prev_it->second == current_it->first) {
+
+					prev_it->second += current_it->second;
+
+					current_it = freeBucketsSortedByPositionInMegaArray.erase(current_it);
+
+					current_it--;
+
+					if (prev_it->second >= sizeNeeded) {
+						return;
+					}
 				}
 				current_it++;
 			}
