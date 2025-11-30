@@ -11,11 +11,13 @@
 #include "FastNoise/FastNoise.h"
 #include "VoxelFunctions.h"
 
+
 unsigned int GetFlattenedChunkIndexForChunksVoxelsDataPoolMetadatas(const Vector3Int& worldSizeInChunks, const Vector3Int& chunkIndex) {
 	return chunkIndex.y * worldSizeInChunks.x * worldSizeInChunks.z + chunkIndex.z * worldSizeInChunks.x + chunkIndex.x;
 }
 
 void CreateNoiseWithPadding(std::vector<float>& noiseOutput, FastNoise::SmartNode<FastNoise::FractalFBm>& fnFractal, Vector3Int chunkSizeInVoxels, int LOD_Level, unsigned int i, unsigned int j, unsigned int k) {
+
 	int extraVoxelsOnOneSide = pow(2, LOD_Level);
 	int extraVoxelsTotalPadding = 2 * extraVoxelsOnOneSide;
 
@@ -33,44 +35,67 @@ int CurChunkLODLevel(
 	Vector3Int chunkIndex,
 	Vector3 chunkPosition,
 	Vector3 worldSizeInChunks,
+	Vector3 chunkSizeInVoxels,
 	Vector3 halfChunkSize,
 	Vector3 currentCameraChunkPosition) {
 
 	Vector3 curChunkCentrePosition = chunkPosition + halfChunkSize;
 
 	float xDist = (currentCameraChunkPosition.x - curChunkCentrePosition.x);
+	float yDist = (currentCameraChunkPosition.y - curChunkCentrePosition.y);
 	float zDist = (currentCameraChunkPosition.z - curChunkCentrePosition.z);
 
 	float xDistSign = xDist / abs(xDist);
+	float yDistSign = yDist / abs(yDist);
 	float zDistSign = zDist / abs(zDist);
 
 	xDist = abs(xDist);
+	yDist = abs(yDist);
 	zDist = abs(zDist);
 
-	int xDistIndex = int(xDist / 32);
-	int zDistIndex = int(zDist / 32);
+	int xDistIndex = int(xDist / chunkSizeInVoxels.x);
+	int yDistIndex = int(yDist / chunkSizeInVoxels.y);
+	int zDistIndex = int(zDist / chunkSizeInVoxels.z);
 
 	unsigned int flattenedChunkIndex = GetFlattenedChunkIndexForChunksVoxelsDataPoolMetadatas(worldSizeInChunks, chunkIndex);
 
 	int LOD_Level = -1;
 
-	if (xDist <= 1024.0 && zDist <= 1024.0) {
+	if (xDist <= 1024.0 && yDist <= 1024.0 && zDist <= 1024.0) {
 		return 0;
 	}
-	else if ((xDist > 2524.0) || (zDist > 2524.0)) {
+	else if ((xDist > 2524.0) || (yDist > 2524.0) || (zDist > 2524.0)) {
 		return 4;
 	}
 	//else if ((xDist > 256.0) || (zDist > 256.0)) {
-	else if ((xDist > 1524.0 && xDist <= 2524.0) || (zDist > 1524.0 && zDist <= 2524.0)) {
+	else if ((xDist > 1524.0 && xDist <= 2524.0) || (yDist > 1524.0 && yDist <= 2524.0) || (zDist > 1524.0 && zDist <= 2524.0)) {
 		return 3;
 	}
-	else if ((xDist > 1224.0 && xDist <= 1524.0) || (zDist > 1224.0 && zDist <= 1524.0)) {
+	else if ((xDist > 1224.0 && xDist <= 1524.0) || (yDist > 1224.0 && yDist <= 1524.0) || (zDist > 1224.0 && zDist <= 1524.0)) {
 		return 2;
 	}
-	else if ((xDist > 1024.0 && xDist <= 1224.0) || (zDist > 1024.0 && zDist <= 1224.0)) {
-	//else if ((xDist > 96.0 && xDist <= 128.0) || (zDist > 96.0 && zDist <= 128.0)) {
+	else if ((xDist > 1024.0 && xDist <= 1224.0) || (yDist > 1024.0 && yDist <= 1224.0) || (zDist > 1024.0 && zDist <= 1224.0)) {
+		//else if ((xDist > 96.0 && xDist <= 128.0) || (zDist > 96.0 && zDist <= 128.0)) {
 		return 1;
 	}
+
+	//if (xDist <= 1024.0 && zDist <= 1024.0) {
+	//	return 0;
+	//}
+	//else if ((xDist > 2524.0) || (zDist > 2524.0)) {
+	//	return 4;
+	//}
+	////else if ((xDist > 256.0) || (zDist > 256.0)) {
+	//else if ((xDist > 1524.0 && xDist <= 2524.0) || (zDist > 1524.0 && zDist <= 2524.0)) {
+	//	return 3;
+	//}
+	//else if ((xDist > 1224.0 && xDist <= 1524.0) || (zDist > 1224.0 && zDist <= 1524.0)) {
+	//	return 2;
+	//}
+	//else if ((xDist > 1024.0 && xDist <= 1224.0) || (zDist > 1024.0 && zDist <= 1224.0)) {
+	////else if ((xDist > 96.0 && xDist <= 128.0) || (zDist > 96.0 && zDist <= 128.0)) {
+	//	return 1;
+	//}
 
 
 	//if (xDist <= 160.0 && zDist <= 160.0) {
@@ -122,8 +147,7 @@ void GenerateChunkAndUploadTo_GPUAndAddToIndirectRenderCommandVectorOn_CPU(
 	VoxelsDataPool& voxelsDataPool,
 	ChunksPerFaceIndirectDrawCommands& chunksPerFaceIndirectDrawCommands,
 	std::vector<ChunkVoxelsDataPoolMetadata>& chunksVoxelsDataPoolMetadatas,
-	ChunksVoxelsDataPoolMetadata& chunksVoxelsDataPoolMetadata,
-	const Vector3& cameraPosition) {
+	ChunksVoxelsDataPoolMetadata& chunksVoxelsDataPoolMetadata) {
 
 	int i = chunkIndex.x;
 	int j = chunkIndex.y;
@@ -140,69 +164,25 @@ void GenerateChunkAndUploadTo_GPUAndAddToIndirectRenderCommandVectorOn_CPU(
 		Vector3Int chunkIndex = Vector3Int{ i, j, k };
 		unsigned int flattenedChunkIndex = GetFlattenedChunkIndexForChunksVoxelsDataPoolMetadatas(worldSizeInChunks, chunkIndex);
 
-		int LOD_Level = CurChunkLODLevel(chunkIndex, chunkPosition, worldSizeInChunks, halfChunkSize, currentCameraChunkPosition);
+		int LOD_Level = CurChunkLODLevel(chunkIndex, chunkPosition, worldSizeInChunks, chunkSizeInVoxels, halfChunkSize, currentCameraChunkPosition);
 		chunksLODLevel[flattenedChunkIndex] = LOD_Level;
-		shouldCreateChunk = true;
-
-		if (shouldCreateChunk) {
-
-			std::vector<float> noiseOutput;
-			CreateNoiseWithPadding(noiseOutput, fnFractal, chunkSizeInVoxels, LOD_Level, i, j, k);
-
-			Vector3Int chunkIndex = Vector3Int{ i, j, k };
-			unsigned int flattenedChunkIndexForVoxelsDataPoolMetadatas = GetFlattenedChunkIndexForChunksVoxelsDataPoolMetadatas(worldSizeInChunks, chunkIndex);
-
-			chunksVoxelsDataPoolMetadatas[flattenedChunkIndexForVoxelsDataPoolMetadatas].packedChunkIndex = chunkIndex.x + (chunkIndex.y << 7) + (chunkIndex.z << 14) + (LOD_Level << 21);
-
-			GenerateChunkVoxelPositionsOnGPUAsSSBOAsTriangleWithVoxelDataPoolForIndirectDrawCommands(noiseOutput, chunkIndex, chunkSizeInVoxels, worldSizeInChunks, LOD_Level, voxelsDataPool, chunksVoxelsDataPoolMetadatas[flattenedChunkIndexForVoxelsDataPoolMetadatas]);
-
-			chunksVoxelsDataPoolMetadata.GPU_UploadChunkVoxelsDataPoolMetadatasToTheGPU(flattenedChunkIndexForVoxelsDataPoolMetadatas);
-
-
-			numGeneratingChunks.fetch_add(-1);
-		}
-	}
-}
-
-void GenerateChunkWithSpecificLODAndUploadTo_GPUAndAddToIndirectRenderCommandVectorOn_CPU(
-	const Vector3Int& chunkIndex, std::vector<int>& chunksCurrentLODLevel, const unsigned int& wantChunkLODLevel,
-	FastNoise::SmartNode<FastNoise::FractalFBm> fnFractal,
-	const Vector3& currentCameraChunkPosition,
-	const Vector3& halfChunkSize, const Vector3Int& worldSizeInChunks, const Vector3Int& chunkSizeInVoxels,
-	VoxelsDataPool& voxelsDataPool,
-	ChunksPerFaceIndirectDrawCommands& chunksPerFaceIndirectDrawCommands,
-	std::vector<ChunkVoxelsDataPoolMetadata>& chunksVoxelsDataPoolMetadatas,
-	ChunksVoxelsDataPoolMetadata& chunksVoxelsDataPoolMetadata,
-	const Vector3& cameraPosition) {
-
-	int i = chunkIndex.x;
-	int j = chunkIndex.y;
-	int k = chunkIndex.z;
-
-	{
-		unsigned int flattenedChunkIndex = GetFlattenedChunkIndexForChunksVoxelsDataPoolMetadatas(worldSizeInChunks, chunkIndex);
-
-		chunksCurrentLODLevel[flattenedChunkIndex] = wantChunkLODLevel;
 
 		std::vector<float> noiseOutput;
-		CreateNoiseWithPadding(noiseOutput, fnFractal, chunkSizeInVoxels, wantChunkLODLevel, i, j, k);
-
+		CreateNoiseWithPadding(noiseOutput, fnFractal, chunkSizeInVoxels, LOD_Level, i, j, k);
 
 		unsigned int flattenedChunkIndexForVoxelsDataPoolMetadatas = GetFlattenedChunkIndexForChunksVoxelsDataPoolMetadatas(worldSizeInChunks, chunkIndex);
 
-		chunksVoxelsDataPoolMetadatas[flattenedChunkIndexForVoxelsDataPoolMetadatas].packedChunkIndex = chunkIndex.x + (chunkIndex.y << 7) + (chunkIndex.z << 14) + (wantChunkLODLevel << 21);
+		chunksVoxelsDataPoolMetadatas[flattenedChunkIndexForVoxelsDataPoolMetadatas].packedChunkIndex = chunkIndex.x + (chunkIndex.y << 7) + (chunkIndex.z << 14) + (LOD_Level << 21);
 
-		GenerateChunkVoxelPositionsOnGPUAsSSBOAsTriangleWithVoxelDataPoolForIndirectDrawCommands(noiseOutput, chunkIndex, chunkSizeInVoxels, worldSizeInChunks, wantChunkLODLevel, voxelsDataPool, chunksVoxelsDataPoolMetadatas[flattenedChunkIndexForVoxelsDataPoolMetadatas]);
+		GenerateChunkVoxelPositionsOnGPUAsSSBOAsTriangleWithVoxelDataPoolForIndirectDrawCommands(noiseOutput, chunkIndex, chunkSizeInVoxels, worldSizeInChunks, LOD_Level, voxelsDataPool, chunksVoxelsDataPoolMetadatas[flattenedChunkIndexForVoxelsDataPoolMetadatas]);
 
 		chunksVoxelsDataPoolMetadata.GPU_UploadChunkVoxelsDataPoolMetadatasToTheGPU(flattenedChunkIndexForVoxelsDataPoolMetadatas);
 
+		//numGeneratingChunks.fetch_add(-1);
 	}
 }
 
-void GenerateChunksAndUploadTo_GPUAndAddToIndirectRenderCommandVectorOn_CPU(std::atomic<int>& numGeneratingChunks, const Vector3Int& worldSizeInChunks, const Vector3Int& chunkSizeInVoxels, std::vector<int>& chunksLODLevel, VoxelsDataPool& voxelsDataPool, ChunksPerFaceIndirectDrawCommands& chunksPerFaceIndirectDrawCommands, std::vector<ChunkVoxelsDataPoolMetadata>& chunksVoxelsDataPoolMetadatas, ChunksVoxelsDataPoolMetadata& chunksVoxelsDataPoolMetadata, const Vector3& cameraPosition, std::vector<std::future<void>>& chunkGenerationFutures) {
-
-	Vector3 currentCameraChunkPosition = Vector3(int(cameraPosition.x / (chunkSizeInVoxels.x)), 0.0, int(cameraPosition.z / (chunkSizeInVoxels.z)));
-	currentCameraChunkPosition *= chunkSizeInVoxels;
+void GenerateChunksAndUploadTo_GPUAndAddToIndirectRenderCommandVectorOn_CPU(std::atomic<int>& numGeneratingChunks, const Vector3Int& worldSizeInChunks, const Vector3Int& chunkSizeInVoxels, std::vector<int>& chunksLODLevel, VoxelsDataPool& voxelsDataPool, ChunksPerFaceIndirectDrawCommands& chunksPerFaceIndirectDrawCommands, std::vector<ChunkVoxelsDataPoolMetadata>& chunksVoxelsDataPoolMetadatas, ChunksVoxelsDataPoolMetadata& chunksVoxelsDataPoolMetadata, const Vector3& currentCameraChunkPosition, std::vector<std::future<void>>& chunkGenerationFutures) {
 
 	Vector3 halfChunkSize = Vector3(chunkSizeInVoxels / 2);
 
@@ -238,8 +218,7 @@ void GenerateChunksAndUploadTo_GPUAndAddToIndirectRenderCommandVectorOn_CPU(std:
 						std::ref(voxelsDataPool),               // <-- ref
 						std::ref(chunksPerFaceIndirectDrawCommands), // <-- ref
 						std::ref(chunksVoxelsDataPoolMetadatas),     // <-- ref
-						std::ref(chunksVoxelsDataPoolMetadata),      // <-- ref
-						cameraPosition
+						std::ref(chunksVoxelsDataPoolMetadata)      // <-- ref
 					));
 				}
 			}
@@ -247,10 +226,8 @@ void GenerateChunksAndUploadTo_GPUAndAddToIndirectRenderCommandVectorOn_CPU(std:
 	}
 }
 
-void CheckChunksForLODChanges(std::vector<int>& currentChunkLODLevels, const Vector3& cameraPosition, const Vector3Int& chunkSizeInVoxels, const Vector3Int& worldSizeInChunks, std::vector < std::pair<Vector3Int, int>>& newChunkLODLevels) {
+void CheckChunksForLODChanges(std::vector<int>& currentChunkLODLevels, const Vector3& currentCameraChunkPosition, const Vector3Int& chunkSizeInVoxels, const Vector3Int& worldSizeInChunks, std::vector < std::pair<Vector3Int, int>>& newChunkLODLevels) {
 
-	Vector3 currentCameraChunkPosition = Vector3(int(cameraPosition.x / (chunkSizeInVoxels.x)), 0.0, int(cameraPosition.z / (chunkSizeInVoxels.z)));
-	currentCameraChunkPosition *= chunkSizeInVoxels;
 	Vector3 halfChunkSize = Vector3(chunkSizeInVoxels / 2);
 
 	for (int j = 0; j < worldSizeInChunks.y; j++)
@@ -266,7 +243,7 @@ void CheckChunksForLODChanges(std::vector<int>& currentChunkLODLevels, const Vec
 
 				unsigned int flattenedChunkIndex = GetFlattenedChunkIndexForChunksVoxelsDataPoolMetadatas(worldSizeInChunks, chunkIndex);
 
-				int LOD_Level = CurChunkLODLevel(chunkIndex, chunkPosition, worldSizeInChunks, halfChunkSize, currentCameraChunkPosition);
+				int LOD_Level = CurChunkLODLevel(chunkIndex, chunkPosition, worldSizeInChunks, chunkSizeInVoxels, halfChunkSize, currentCameraChunkPosition);
 				if (currentChunkLODLevels.at(flattenedChunkIndex) != LOD_Level) {
 					newChunkLODLevels.push_back({ chunkIndex, LOD_Level });
 				}
@@ -274,38 +251,3 @@ void CheckChunksForLODChanges(std::vector<int>& currentChunkLODLevels, const Vec
 		}
 	}
 }
-
-//
-//void GenerateChunksOnCPUAndWriteVoxelsDataToGPU(const Vector3Int& worldSizeInChunks, const Vector3Int& chunkSizeInVoxels, VoxelsDataPool& voxelsDataPool, ChunksPerFaceIndirectDrawCommands& chunksPerFaceIndirectDrawCommands, std::vector<ChunkVoxelsDataPoolMetadata>& chunksVoxelsDataPoolMetadatas) {
-//
-//	auto fnSimplex = FastNoise::New<FastNoise::Simplex>();
-//	auto fnFractal = FastNoise::New<FastNoise::FractalFBm>();
-//
-//	fnFractal->SetSource(fnSimplex);
-//	fnFractal->SetOctaveCount(5);
-//
-//	for (unsigned int j = 0; j < worldSizeInChunks.y; j++)
-//	{
-//		for (unsigned int k = 0; k < worldSizeInChunks.z; k++)
-//		{
-//			for (unsigned int i = 0; i < worldSizeInChunks.x; i++)
-//			{
-//				std::vector<float> noiseOutput(chunkSizeInVoxels.x * chunkSizeInVoxels.z);
-//
-//				Vector3Int chunkStartWorldPos = Vector3Int{ i * chunkSizeInVoxels.x, j * chunkSizeInVoxels.y, k * chunkSizeInVoxels.z };
-//				fnFractal->GenUniformGrid2D(noiseOutput.data(), chunkStartWorldPos.x, chunkStartWorldPos.z, chunkSizeInVoxels.x, chunkSizeInVoxels.z, 0.2f, 1337);
-//
-//				unsigned int numVoxelDatasPerBucket = chunkSizeInVoxels.x * chunkSizeInVoxels.y * chunkSizeInVoxels.z;
-//				unsigned int numBuckets = worldSizeInChunks.x * worldSizeInChunks.y * worldSizeInChunks.z;
-//				unsigned int megaVoxelsDataBufferObjectBindingLocation = 2;
-//
-//
-//				Vector3Int chunkIndex = Vector3Int{ i, 0, k };
-//				unsigned int flattenedChunkIndexForVoxelsDataPoolMetadatas = GetFlattenedChunkIndexForChunksVoxelsDataPoolMetadatas(worldSizeInChunks, chunkIndex);
-//
-//				chunksVoxelsDataPoolMetadatas[flattenedChunkIndexForVoxelsDataPoolMetadatas].packedChunkIndex = chunkIndex.x + (chunkIndex.y << 5) + (chunkIndex.z << 10);
-//				GenerateChunkVoxelPositionsOnGPUAsSSBOAsTriangleWithVoxelDataPoolForIndirectDrawCommands(noiseOutput, chunkSizeInVoxels, voxelsDataPool, chunksVoxelsDataPoolMetadatas[flattenedChunkIndexForVoxelsDataPoolMetadatas]);
-//			}
-//		}
-//	}
-//}

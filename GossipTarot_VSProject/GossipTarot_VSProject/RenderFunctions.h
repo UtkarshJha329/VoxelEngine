@@ -128,10 +128,10 @@ void RenderMeshOnGPUWithDrawElementsIndirectCommandsWithComputeShader(const Shad
 
 
 	{
-		int mainCameraViewLoc = glGetUniformLocation(shaderForRendering.shaderProgramID, "view");		
+		int mainCameraViewLoc = glGetUniformLocation(shaderForRendering.shaderProgramID, "view");
 		Mat4x4 viewMatrix = glm::lookAt(cameraTransform.position, glm::normalize(mainCamera.cameraPointingDirection) + cameraTransform.position, mainCamera.cameraUp);
 		glUniformMatrix4fv(mainCameraViewLoc, 1, GL_FALSE, glm::value_ptr(viewMatrix));
-	
+
 		int mainCameraProjectionLoc = glGetUniformLocation(shaderForRendering.shaderProgramID, "projection");
 		glUniformMatrix4fv(mainCameraProjectionLoc, 1, GL_FALSE, glm::value_ptr(mainCamera.GetProjectionMatrix()));
 
@@ -174,6 +174,7 @@ void RenderMeshOnGPUWithDrawElementsIndirectCommandsWithComputeShaderAndCullingC
 	const Mat4x4& globalTransformMatrix,
 	const int& textureIndex,
 	const Vector3& worldSizeInChunks,
+	const Vector3& chunkSizeInVoxels,
 	const MeshOnGPU& meshOnGPU,
 	const ChunksPerFaceIndirectDrawCommands& chunksPerFaceIndirectDrawCommands,
 	const VoxelsDataPool& voxelsDataPool, const ChunksVoxelsDataPoolMetadata& chunksVoxelsDataPoolMetadata,
@@ -196,6 +197,9 @@ void RenderMeshOnGPUWithDrawElementsIndirectCommandsWithComputeShaderAndCullingC
 
 		int worldSizeInChunksLoc = glGetUniformLocation(voxelsIndirectDrawComputShader.shaderProgramID, "worldSizeInChunks");
 		glUniform3fv(worldSizeInChunksLoc, 1, glm::value_ptr(worldSizeInChunks));
+
+		int chunkSizeInVoxelsLoc = glGetUniformLocation(voxelsIndirectDrawComputShader.shaderProgramID, "chunkSizeInVoxels");
+		glUniform3fv(chunkSizeInVoxelsLoc, 1, glm::value_ptr(chunkSizeInVoxels));
 	}
 
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, chunksVoxelsDataPoolMetadata.gpu_chunksVoxelsDataPoolMetadatasBindingPoint, chunksVoxelsDataPoolMetadata.gpu_chunksVoxelsDataPoolMetadatasBufferID);
@@ -226,6 +230,10 @@ void RenderMeshOnGPUWithDrawElementsIndirectCommandsWithComputeShaderAndCullingC
 		int worldSizeInChunksLoc = glGetUniformLocation(shaderForRendering.shaderProgramID, "worldSizeInChunks");
 		glUniform3fv(worldSizeInChunksLoc, 1, glm::value_ptr(worldSizeInChunks));
 
+		int chunkSizeInVoxelsLoc = glGetUniformLocation(shaderForRendering.shaderProgramID, "chunkSizeInVoxels");
+		glUniform3fv(chunkSizeInVoxelsLoc, 1, glm::value_ptr(chunkSizeInVoxels));
+
+
 		int modelLoc = glGetUniformLocation(shaderForRendering.shaderProgramID, "model");
 		glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(globalTransformMatrix));
 	}
@@ -237,7 +245,7 @@ void RenderMeshOnGPUWithDrawElementsIndirectCommandsWithComputeShaderAndCullingC
 	glBindVertexArray(meshOnGPU.VAO);
 	glBindBuffer(GL_PARAMETER_BUFFER, chunksPerFaceIndirectDrawCommands.gpu_drawElementsIndirectCommandsDrawCountBufferID);
 	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, chunksPerFaceIndirectDrawCommands.gpu_drawElementsIndirectCommandsBufferID);
-	
+
 	//glEnable(GL_DEPTH_TEST);
 	glDepthMask(GL_TRUE);
 	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
@@ -298,6 +306,10 @@ void RenderMeshOnGPUWithDrawElementsIndirectCommandsWithComputeShaderAndCullingC
 
 				int worldSizeInChunksLoc = glGetUniformLocation(frustumCullingComputeShader.shaderProgramID, "worldSizeInChunks");
 				glUniform3fv(worldSizeInChunksLoc, 1, glm::value_ptr(worldSizeInChunks));
+
+				int chunkSizeInVoxelsLoc = glGetUniformLocation(frustumCullingComputeShader.shaderProgramID, "chunkSizeInVoxels");
+				glUniform3fv(chunkSizeInVoxelsLoc, 1, glm::value_ptr(chunkSizeInVoxels));
+
 			}
 
 			chunksVisibilityFromCulling.UpdateCameraFrustumOnCPUAndGPU(mainCamera, cameraTransform.position);
@@ -352,6 +364,10 @@ void RenderMeshOnGPUWithDrawElementsIndirectCommandsWithComputeShaderAndCullingC
 				int worldSizeInChunksLoc = glGetUniformLocation(occlusionCullingVertAndFragShaders.shaderProgramID, "worldSizeInChunks");
 				glUniform3fv(worldSizeInChunksLoc, 1, glm::value_ptr(worldSizeInChunks));
 
+				int chunkSizeInVoxelsLoc = glGetUniformLocation(occlusionCullingVertAndFragShaders.shaderProgramID, "chunkSizeInVoxels");
+				glUniform3fv(chunkSizeInVoxelsLoc, 1, glm::value_ptr(chunkSizeInVoxels));
+
+
 				int modelLoc = glGetUniformLocation(occlusionCullingVertAndFragShaders.shaderProgramID, "model");
 				glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(globalTransformMatrix));
 
@@ -389,7 +405,7 @@ void RenderMeshOnGPUWithDrawElementsIndirectCommandsWithComputeShaderAndCullingC
 		}
 	}
 
-	if(drawBoundingBox) {
+	if (drawBoundingBox) {
 		// Draw bounding box
 
 		glUseProgram(occlusionCullingVertAndFragShaders.shaderProgramID);
@@ -407,6 +423,9 @@ void RenderMeshOnGPUWithDrawElementsIndirectCommandsWithComputeShaderAndCullingC
 
 			int worldSizeInChunksLoc = glGetUniformLocation(occlusionCullingVertAndFragShaders.shaderProgramID, "worldSizeInChunks");
 			glUniform3fv(worldSizeInChunksLoc, 1, glm::value_ptr(worldSizeInChunks));
+
+			int chunkSizeInVoxelsLoc = glGetUniformLocation(occlusionCullingVertAndFragShaders.shaderProgramID, "chunkSizeInVoxels");
+			glUniform3fv(chunkSizeInVoxelsLoc, 1, glm::value_ptr(chunkSizeInVoxels));
 
 			int modelLoc = glGetUniformLocation(occlusionCullingVertAndFragShaders.shaderProgramID, "model");
 			glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(globalTransformMatrix));

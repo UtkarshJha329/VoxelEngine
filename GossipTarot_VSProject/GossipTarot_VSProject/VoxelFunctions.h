@@ -9,25 +9,26 @@
 #include "VoxelsDataPool.h"
 #include "ChunksPerFaceDrawElementsIndirectCommands.h"
 
+
 bool VoxelIndexLiesInsideChunk(const Vector3Int& chunkSizeInVoxels, const Vector3Int& curVoxelIndex) {
 
 	return !((curVoxelIndex.x < 0 ||
-				curVoxelIndex.y < 0 ||
-				curVoxelIndex.z < 0 ||
-				curVoxelIndex.x >= chunkSizeInVoxels.x ||
-				curVoxelIndex.y >= chunkSizeInVoxels.y ||
-				curVoxelIndex.z >= chunkSizeInVoxels.z));
+		curVoxelIndex.y < 0 ||
+		curVoxelIndex.z < 0 ||
+		curVoxelIndex.x >= chunkSizeInVoxels.x ||
+		curVoxelIndex.y >= chunkSizeInVoxels.y ||
+		curVoxelIndex.z >= chunkSizeInVoxels.z));
 
 }
 
 bool VoxelIndexLiesInsideChunk(const Vector3Int& chunkSizeInVoxels, const Vector3Int& curVoxelIndex, int extraVoxelsOnOneSide) {
 
 	return !((curVoxelIndex.x < -extraVoxelsOnOneSide ||
-				curVoxelIndex.y < -extraVoxelsOnOneSide ||
-				curVoxelIndex.z < -extraVoxelsOnOneSide ||
-				curVoxelIndex.x >= chunkSizeInVoxels.x + extraVoxelsOnOneSide ||
-				curVoxelIndex.y >= chunkSizeInVoxels.y + extraVoxelsOnOneSide ||
-				curVoxelIndex.z >= chunkSizeInVoxels.z + extraVoxelsOnOneSide));
+		curVoxelIndex.y < -extraVoxelsOnOneSide ||
+		curVoxelIndex.z < -extraVoxelsOnOneSide ||
+		curVoxelIndex.x >= chunkSizeInVoxels.x + extraVoxelsOnOneSide ||
+		curVoxelIndex.y >= chunkSizeInVoxels.y + extraVoxelsOnOneSide ||
+		curVoxelIndex.z >= chunkSizeInVoxels.z + extraVoxelsOnOneSide));
 
 }
 
@@ -76,7 +77,7 @@ void GenerateCommonChunkMeshOnGPU(const Vector3Int& chunkSizeInVoxels, MeshOnGPU
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(indices[0]), indices.data(), GL_STATIC_DRAW);
 }
 
-void GPU_WriteFaceVoxelDataToFreeBucketAndFillMetadata(VoxelsDataPool& voxelsDataPool,	std::vector<unsigned int>& compressedChunkFaceVoxelPositions, FaceVoxelsDataPoolMetadata& curChunkFaceVoxelsDataPoolMetadata, unsigned int& numFaceIndices, const unsigned int& numVoxelsForFace, const unsigned int& curLODLevel) {
+void GPU_WriteFaceVoxelDataToFreeBucketAndFillMetadata(VoxelsDataPool& voxelsDataPool, std::vector<unsigned int>& compressedChunkFaceVoxelPositions, FaceVoxelsDataPoolMetadata& curChunkFaceVoxelsDataPoolMetadata, unsigned int& numFaceIndices, const unsigned int& numVoxelsForFace, const unsigned int& curLODLevel) {
 	if (numVoxelsForFace > 0) {
 		if (voxelsDataPool.GPU_WriteFaceVoxelDataToFreeBucket(compressedChunkFaceVoxelPositions, curChunkFaceVoxelsDataPoolMetadata, numVoxelsForFace)) {
 			curChunkFaceVoxelsDataPoolMetadata.numVoxelDataInBucket = numFaceIndices;
@@ -89,15 +90,15 @@ void GPU_WriteFaceVoxelDataToFreeBucketAndFillMetadata(VoxelsDataPool& voxelsDat
 
 void GenerateChunkVoxelPositionsOnGPUAsSSBOAsTriangleWithVoxelDataPoolForIndirectDrawCommands(const std::vector<float>& chunkNoise, const Vector3Int& chunkIndex, const Vector3Int& chunkSizeInVoxels, const Vector3Int& worldSizeInChunks, const int& curChunkLODLevel, VoxelsDataPool& voxelsDataPool, ChunkVoxelsDataPoolMetadata& curChunkVoxelsDataPoolMetadata) {
 
-	const unsigned int bitShiftPosX = 0;
-	const unsigned int bitShiftPosY = 5;
-	const unsigned int bitShiftPosZ = 10;
-	const unsigned int bitShiftPosFace = 15;
-
 	//const unsigned int bitShiftPosX = 0;
-	//const unsigned int bitShiftPosY = 6;
-	//const unsigned int bitShiftPosZ = 12;
-	//const unsigned int bitShiftPosFace = 18;
+	//const unsigned int bitShiftPosY = 5;
+	//const unsigned int bitShiftPosZ = 10;
+	//const unsigned int bitShiftPosFace = 15;
+
+	const unsigned int bitShiftPosX = 0;
+	const unsigned int bitShiftPosY = 6;
+	const unsigned int bitShiftPosZ = 12;
+	const unsigned int bitShiftPosFace = 18;
 
 	const unsigned int bitShiftFaceIDTop = 0;
 	const unsigned int bitShiftFaceIDBottom = 1;
@@ -148,27 +149,27 @@ void GenerateChunkVoxelPositionsOnGPUAsSSBOAsTriangleWithVoxelDataPoolForIndirec
 					curVoxelCompactPos += (y << bitShiftPosY);
 					curVoxelCompactPos += (z << bitShiftPosZ);
 
-					if (!NoiseExistsInNeighbour(chunkNoise, extraVoxelsOnOneSide, extraVoxelsTotalPadding, chunkIndex, chunkSizeInVoxels, worldSizeInChunks, Vector3Int{ x, y, z }, Vector3Int{ 0, 1, 0 } * currentVoxelLODSize)) {
+					if (!NoiseExistsInNeighbour(chunkNoise, extraVoxelsOnOneSide, extraVoxelsTotalPadding, chunkIndex, chunkSizeInVoxels, worldSizeInChunks, Vector3Int{ x, y, z }, Vector3Int{ 0, 1, 0 } *currentVoxelLODSize)) {
 						AddBitShiftFaceIDToCompressedVoxelPositionAsTriangleForSSBOOfIndirectDrawCommands(compressedChunkTopFaceVoxelPositions, numTopFaceIndicesInChunk, curVoxelCompactPos, (bitShiftFaceIDTop << bitShiftPosFace));
 						numTopFaceVoxels++;
 					}
-					if (!NoiseExistsInNeighbour(chunkNoise, extraVoxelsOnOneSide, extraVoxelsTotalPadding, chunkIndex, chunkSizeInVoxels, worldSizeInChunks, Vector3Int{ x, y, z }, Vector3Int{ 0, -1, 0 } * currentVoxelLODSize)) {
+					if (!NoiseExistsInNeighbour(chunkNoise, extraVoxelsOnOneSide, extraVoxelsTotalPadding, chunkIndex, chunkSizeInVoxels, worldSizeInChunks, Vector3Int{ x, y, z }, Vector3Int{ 0, -1, 0 } *currentVoxelLODSize)) {
 						AddBitShiftFaceIDToCompressedVoxelPositionAsTriangleForSSBOOfIndirectDrawCommands(compressedChunkBottomFaceVoxelPositions, numBottomFaceIndicesInChunk, curVoxelCompactPos, (bitShiftFaceIDBottom << bitShiftPosFace));
 						numBottomFaceVoxels++;
 					}
-					if (!NoiseExistsInNeighbour(chunkNoise, extraVoxelsOnOneSide, extraVoxelsTotalPadding, chunkIndex, chunkSizeInVoxels, worldSizeInChunks, Vector3Int{ x, y, z }, Vector3Int{ -1, 0, 0 } * currentVoxelLODSize)) {
+					if (!NoiseExistsInNeighbour(chunkNoise, extraVoxelsOnOneSide, extraVoxelsTotalPadding, chunkIndex, chunkSizeInVoxels, worldSizeInChunks, Vector3Int{ x, y, z }, Vector3Int{ -1, 0, 0 } *currentVoxelLODSize)) {
 						AddBitShiftFaceIDToCompressedVoxelPositionAsTriangleForSSBOOfIndirectDrawCommands(compressedChunkLeftFaceVoxelPositions, numLeftFaceIndicesInChunk, curVoxelCompactPos, (bitShiftFaceIDLeft << bitShiftPosFace));
 						numLeftFaceVoxels++;
 					}
-					if (!NoiseExistsInNeighbour(chunkNoise, extraVoxelsOnOneSide, extraVoxelsTotalPadding, chunkIndex, chunkSizeInVoxels, worldSizeInChunks, Vector3Int{ x, y, z }, Vector3Int{ 1, 0, 0 } * currentVoxelLODSize)) {
+					if (!NoiseExistsInNeighbour(chunkNoise, extraVoxelsOnOneSide, extraVoxelsTotalPadding, chunkIndex, chunkSizeInVoxels, worldSizeInChunks, Vector3Int{ x, y, z }, Vector3Int{ 1, 0, 0 } *currentVoxelLODSize)) {
 						AddBitShiftFaceIDToCompressedVoxelPositionAsTriangleForSSBOOfIndirectDrawCommands(compressedChunkRightFaceVoxelPositions, numRightFaceIndicesInChunk, curVoxelCompactPos, (bitShiftFaceIDRight << bitShiftPosFace));
 						numRightFaceVoxels++;
 					}
-					if (!NoiseExistsInNeighbour(chunkNoise, extraVoxelsOnOneSide, extraVoxelsTotalPadding, chunkIndex, chunkSizeInVoxels, worldSizeInChunks, Vector3Int{ x, y, z }, Vector3Int{ 0, 0, 1 } * currentVoxelLODSize)) {
+					if (!NoiseExistsInNeighbour(chunkNoise, extraVoxelsOnOneSide, extraVoxelsTotalPadding, chunkIndex, chunkSizeInVoxels, worldSizeInChunks, Vector3Int{ x, y, z }, Vector3Int{ 0, 0, 1 } *currentVoxelLODSize)) {
 						AddBitShiftFaceIDToCompressedVoxelPositionAsTriangleForSSBOOfIndirectDrawCommands(compressedChunkFrontFaceVoxelPositions, numFrontFaceIndicesInChunk, curVoxelCompactPos, (bitShiftFaceIDFront << bitShiftPosFace));
 						numFrontFaceVoxels++;
 					}
-					if (!NoiseExistsInNeighbour(chunkNoise, extraVoxelsOnOneSide, extraVoxelsTotalPadding, chunkIndex, chunkSizeInVoxels, worldSizeInChunks, Vector3Int{ x, y, z }, Vector3Int{ 0, 0, -1 } * currentVoxelLODSize)) {
+					if (!NoiseExistsInNeighbour(chunkNoise, extraVoxelsOnOneSide, extraVoxelsTotalPadding, chunkIndex, chunkSizeInVoxels, worldSizeInChunks, Vector3Int{ x, y, z }, Vector3Int{ 0, 0, -1 } *currentVoxelLODSize)) {
 						AddBitShiftFaceIDToCompressedVoxelPositionAsTriangleForSSBOOfIndirectDrawCommands(compressedChunkBackFaceVoxelPositions, numBackFaceIndicesInChunk, curVoxelCompactPos, (bitShiftFaceIDBack << bitShiftPosFace));
 						numBackFaceVoxels++;
 					}
@@ -777,4 +778,3 @@ void CPU_WriteChunkDataToDrawCommand(const ChunkVoxelsDataPoolMetadata& curChunk
 //
 //	numIndicesInChunk = indices.size();
 //}
-

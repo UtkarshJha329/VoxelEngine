@@ -31,6 +31,7 @@ layout (binding = 7, std430) buffer ChunksVisibilityData {
 uniform vec3 cameraPosition;
 uniform vec3 cameraPointingDirectionNormalised;
 uniform vec3 worldSizeInChunks;
+uniform vec3 chunkSizeInVoxels;
 
 bool PointInDirectionPlaneIsPointingIn(vec3 point, Plane plane){
     return dot((point - plane.pointOnPlane), plane.normal) >= 0;
@@ -124,8 +125,6 @@ void main(void) {
 	if (gl_GlobalInvocationID.x >= (worldSizeInChunks.x * worldSizeInChunks.y * worldSizeInChunks.z)) {
 		return;
 	}
-
-    vec3 chunkSizeInVoxels = vec3(32.0, 32.0, 32.0);
     
     float chunkYIndex = gl_GlobalInvocationID.x / (worldSizeInChunks.x * worldSizeInChunks.z);
     float rem = mod(gl_GlobalInvocationID.x, (worldSizeInChunks.x * worldSizeInChunks.z));
@@ -143,4 +142,3 @@ void main(void) {
         chunksVisibilityData[gl_GlobalInvocationID.x] = 0;
     }
 }
-

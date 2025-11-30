@@ -1,4 +1,3 @@
-
 #include <iostream>
 
 #include <future>
@@ -401,17 +400,18 @@ int main() {
 
 
 	// VVV LIMITED BY COMPRESSION TO INT IN PACKED CHUNK INDEX AND NUMBER OF COMPUTE THREADS DISPATCHED! Currently limited by each coordinate having 7 bits, i.e max 127 for each coord but with compute threads dispatched it is limited to __.
-	//Vector3Int worldSizeInChunks = { 120, 16, 120 };
-	Vector3Int worldSizeInChunks = { 96, 16, 96 };
+	Vector3Int worldSizeInChunks = { 120, 16, 120 };
+	//Vector3Int worldSizeInChunks = { 96, 16, 96 };
 	//Vector3Int worldSizeInChunks = { 64, 16, 64 };
 	//Vector3Int worldSizeInChunks = { 32, 16, 32 };
 	//Vector3Int worldSizeInChunks = { 4, 2, 4 };
-	Vector3Int chunkSizeInVoxels = { 32, 32, 32 };
+	//Vector3Int chunkSizeInVoxels = { 32, 32, 32 };
+	Vector3Int chunkSizeInVoxels = { 64, 64, 64 };
 
 	Vector3Int centreVoxelPositionInWorld = { (worldSizeInChunks.x * chunkSizeInVoxels.x) / 2, (worldSizeInChunks.y * chunkSizeInVoxels.y) / 2, (worldSizeInChunks.z * chunkSizeInVoxels.z) / 2 };
 	cameraTransform.position = { centreVoxelPositionInWorld.x, centreVoxelPositionInWorld.y, centreVoxelPositionInWorld.z };
 
-	Vector3 currentCameraChunkPosition = Vector3(int(cameraTransform.position.x / (chunkSizeInVoxels.x)), 0.0, int(cameraTransform.position.z / (chunkSizeInVoxels.z)));
+	Vector3	currentCameraChunkPosition = Vector3(int(cameraTransform.position.x / (chunkSizeInVoxels.x)), int(cameraTransform.position.y / (chunkSizeInVoxels.y)), int(cameraTransform.position.z / (chunkSizeInVoxels.z)));
 	currentCameraChunkPosition *= chunkSizeInVoxels;
 	Vector3 halfChunkSize = Vector3(chunkSizeInVoxels / 2);
 	unsigned int totalNumChunks = worldSizeInChunks.x * worldSizeInChunks.y * worldSizeInChunks.z;
@@ -432,7 +432,7 @@ int main() {
 
 	MeshOnGPU commonChunkMeshOnGPU;
 	GenerateCommonChunkMeshOnGPU(chunkSizeInVoxels, commonChunkMeshOnGPU);
-	
+
 	std::vector<int> chunksLODLevel;
 	chunksLODLevel.reserve(totalNumChunks);
 	chunksLODLevel.resize(totalNumChunks);
@@ -442,7 +442,7 @@ int main() {
 
 	unsigned int chunksVoxelsDataPoolMetadatasBindingPoint = 3;
 	ChunksVoxelsDataPoolMetadata chunksVoxelsDataPoolMetadatas(worldSizeInChunks, chunksVoxelsDataPoolMetadatasBindingPoint);
-	GenerateChunksAndUploadTo_GPUAndAddToIndirectRenderCommandVectorOn_CPU(numGeneratingChunks, worldSizeInChunks, chunkSizeInVoxels, chunksLODLevel, voxelsDataPool, chunksPerFaceIndirectDrawCommands, chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas, chunksVoxelsDataPoolMetadatas, cameraTransform.position, chunkGenerationFutures);
+	GenerateChunksAndUploadTo_GPUAndAddToIndirectRenderCommandVectorOn_CPU(numGeneratingChunks, worldSizeInChunks, chunkSizeInVoxels, chunksLODLevel, voxelsDataPool, chunksPerFaceIndirectDrawCommands, chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas, chunksVoxelsDataPoolMetadatas, currentCameraChunkPosition, chunkGenerationFutures);
 
 	chunksPerFaceIndirectDrawCommands.GPU_InitCommandBuffer();
 
@@ -463,7 +463,7 @@ int main() {
 	unsigned int gpu_chunksVisibilityFromCullingDataBindingPoint = 7;
 	ChunksVisiblityFromCulling chunksVisibilityFromCulling(totalNumChunks, gpu_cameraFrustumDataBindingPoint, gpu_chunksVisibilityFromCullingDataBindingPoint);
 
-	
+
 	// Todo 2 : Block Editing.
 	// Todo 3 : Block types/ block palette.
 	// Todo 4 : Binary Meshing.
@@ -492,7 +492,7 @@ int main() {
 		float moveSpeed = 3.0f;
 
 		if (GetKeyHeld(KeyCode::KEY_SPACE)) {
-			moveSpeed = 30.0f;
+			moveSpeed = 30.0f + pow(10, deltaTime);
 		}
 		else if (GetKeyReleasedInThisFrame(KeyCode::KEY_SPACE)) {
 			moveSpeed = 3.0f;
@@ -538,7 +538,7 @@ int main() {
 				cameraTransform.position -= cameraTransform.worldUp * moveSpeed * deltaTime;
 			}
 
-			if (!CurrentlyGeneratingAChunk(chunkGenerationFutures) && !freezeCulling && numGeneratingChunks.load() == 0) {
+			if (!CurrentlyGeneratingAChunk(chunkGenerationFutures) && !freezeCulling/* && numGeneratingChunks.load() == 0*/) {
 
 				for (auto& future : chunkGenerationFutures)
 				{
@@ -553,8 +553,11 @@ int main() {
 				}
 				chunkGenerationFutures.clear();
 
+				currentCameraChunkPosition = Vector3(int(cameraTransform.position.x / (chunkSizeInVoxels.x)), int(cameraTransform.position.y / (chunkSizeInVoxels.y)), int(cameraTransform.position.z / (chunkSizeInVoxels.z)));
+				currentCameraChunkPosition *= chunkSizeInVoxels;
+
 				std::vector<std::pair<Vector3Int, int>> newChunkLODLevels;
-				CheckChunksForLODChanges(chunksLODLevel, cameraTransform.position, chunkSizeInVoxels, worldSizeInChunks, newChunkLODLevels);
+				CheckChunksForLODChanges(chunksLODLevel, currentCameraChunkPosition, chunkSizeInVoxels, worldSizeInChunks, newChunkLODLevels);
 
 
 				unsigned int numLOD0 = 0;
@@ -564,8 +567,6 @@ int main() {
 
 				if (!newChunkLODLevels.empty()) {
 
-					Vector3 currentCameraChunkPosition = Vector3(int(cameraTransform.position.x / (chunkSizeInVoxels.x)), 0.0, int(cameraTransform.position.z / (chunkSizeInVoxels.z)));
-					currentCameraChunkPosition *= chunkSizeInVoxels;
 
 					Vector3 halfChunkSize = Vector3(chunkSizeInVoxels / 2);
 
@@ -613,7 +614,7 @@ int main() {
 
 					}
 
-					numGeneratingChunks.store(newChunkLODLevels.size());
+					//numGeneratingChunks.store(newChunkLODLevels.size());
 
 					for (int i = 0; i < newChunkLODLevels.size(); i++)
 					{
@@ -631,8 +632,7 @@ int main() {
 							std::ref(voxelsDataPool),
 							std::ref(chunksPerFaceIndirectDrawCommands),
 							std::ref(chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas),
-							std::ref(chunksVoxelsDataPoolMetadatas),
-							cameraTransform.position));
+							std::ref(chunksVoxelsDataPoolMetadatas)));
 					}
 				}
 			}
@@ -658,6 +658,7 @@ int main() {
 			modelTransform.GetTransformMatrix(),
 			stickmanTextureIndex,
 			worldSizeInChunks,
+			chunkSizeInVoxels,
 			commonChunkMeshOnGPU,
 			chunksPerFaceIndirectDrawCommands,
 			voxelsDataPool,

@@ -5,6 +5,7 @@ uniform mat4 view;
 uniform mat4 projection;
 
 uniform vec3 worldSizeInChunks;
+uniform vec3 chunkSizeInVoxels;
 uniform vec3 cameraWorldVoxelPosition;
 
 layout(binding = 2, std430) readonly buffer VoxelFaceAndPositionData {
@@ -179,13 +180,13 @@ vec3 generateConsistentColor(float i, float j, float k) {
 
 void main()
 {
-	ivec3 numVoxelsInChunk = ivec3(32, 32, 32);
+//	ivec3 numVoxelsInChunk = ivec3(32, 32, 32);
 	uint maxChunkLocalCoord = 127;
 	uint chunkPackedCoordShiftBy = 7;
 	uint maxLODLevel = 3;
 
-	uint maxVoxelLocalCoord = 31;
-	uint voxelCoordBitShiftBy = 5;
+	uint maxVoxelLocalCoord = 63;
+	uint voxelCoordBitShiftBy = 6;
 
 	uint curVertexDataID = GetCurrentVertexIDWithoutBaseVertex() >> 2;		// Because GenerateCommonChunkMeshOnGPU in VoxelFunctions.h does bit shift to the left by 2 bits for adding triangle vertex ID of [0, 1, 2];
 	curVertexDataID += gl_BaseVertex;
@@ -203,13 +204,13 @@ void main()
     ivec3 voxelLocalPosition = ivec3(xPos, yPos, zPos);
 
 	uint packedChunkCoords = gl_BaseInstance;
-	uint chunkXPos = (packedChunkCoords & maxChunkLocalCoord) * numVoxelsInChunk.x;
+	uint chunkXPos = (packedChunkCoords & maxChunkLocalCoord) * int(chunkSizeInVoxels.x);
 	packedChunkCoords = packedChunkCoords >> chunkPackedCoordShiftBy;
 
-	uint chunkYPos = (packedChunkCoords & maxChunkLocalCoord) * numVoxelsInChunk.y;
+	uint chunkYPos = (packedChunkCoords & maxChunkLocalCoord) * int(chunkSizeInVoxels.y);
 	packedChunkCoords = packedChunkCoords >> chunkPackedCoordShiftBy;
 
-	uint chunkZPos = (packedChunkCoords & maxChunkLocalCoord) * numVoxelsInChunk.z;
+	uint chunkZPos = (packedChunkCoords & maxChunkLocalCoord) * int(chunkSizeInVoxels.z);
 	packedChunkCoords = packedChunkCoords >> chunkPackedCoordShiftBy;
 
 	ivec3 chunkPosition = ivec3(chunkXPos, chunkYPos, chunkZPos);
@@ -243,7 +244,7 @@ void main()
     gl_Position = projection * view * model * vec4(vertexPosition, 1.0);
     texCoords = GetCurrentTexCoordBasedOnVertexIDAndCurFace(curFace);
 
-	vec3 maxPosition = worldSizeInChunks * numVoxelsInChunk;
+	vec3 maxPosition = worldSizeInChunks * chunkSizeInVoxels;
 
 //	chunkDebugColour = vec4(generateConsistentColor(chunkXPos, chunkYPos, chunkZPos), 1.0);
 

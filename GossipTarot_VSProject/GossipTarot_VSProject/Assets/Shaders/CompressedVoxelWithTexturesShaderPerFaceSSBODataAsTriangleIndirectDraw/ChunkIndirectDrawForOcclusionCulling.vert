@@ -5,6 +5,7 @@ uniform mat4 view;
 uniform mat4 projection;
 
 uniform vec3 worldSizeInChunks;
+uniform vec3 chunkSizeInVoxels;
 uniform vec3 cameraWorldVoxelPosition;
 
 layout (binding = 2, std430) readonly buffer VoxelFaceAndPositionData {
@@ -150,11 +151,11 @@ vec2 GetCurrentTexCoordBasedOnVertexIDAndCurFace(uint curFaceIndex) {
 
 void main()
 {
-	ivec3 numVoxelsInChunk = ivec3(32, 32, 32);
+//	ivec3 numVoxelsInChunk = ivec3(32, 32, 32);
 	uint maxChunkLocalCoord = 127;
 	uint chunkPackedCoordShiftBy = 7;
 
-	uint voxelCoordBitShiftBy = 5;
+	uint voxelCoordBitShiftBy = 6;
 
 	uint curVertexDataID = GetCurrentVertexIDWithoutBaseVertex() >> 2;		// Because GenerateCommonChunkMeshOnGPU in VoxelFunctions.h does bit shift to the left by 2 bits for adding triangle vertex ID of [0, 1, 2];
 	curVertexDataID += gl_BaseVertex;
@@ -166,23 +167,23 @@ void main()
 
 	uint packedChunkCoords = gl_BaseInstance;
 	uint chunkXIndex = (packedChunkCoords & maxChunkLocalCoord);
-	uint chunkXPos =  chunkXIndex * numVoxelsInChunk.x;
+	uint chunkXPos =  chunkXIndex * int(chunkSizeInVoxels.x);
 	packedChunkCoords = packedChunkCoords >> chunkPackedCoordShiftBy;
 
 	uint chunkYIndex = (packedChunkCoords & maxChunkLocalCoord);
-	uint chunkYPos = chunkYIndex * numVoxelsInChunk.y;
+	uint chunkYPos = chunkYIndex * int(chunkSizeInVoxels.y);
 	packedChunkCoords = packedChunkCoords >> chunkPackedCoordShiftBy;
 
 	uint chunkZIndex = (packedChunkCoords & maxChunkLocalCoord);
-	uint chunkZPos = chunkZIndex * numVoxelsInChunk.z;
+	uint chunkZPos = chunkZIndex * int(chunkSizeInVoxels.z);
 	packedChunkCoords = packedChunkCoords >> chunkPackedCoordShiftBy;
 
 	ivec3 chunkPosition = ivec3(chunkXPos, chunkYPos, chunkZPos);
 
 
-	float xScale = numVoxelsInChunk.x;
-	float yScale = numVoxelsInChunk.y;
-	float zScale = numVoxelsInChunk.z;
+	float xScale = int(chunkSizeInVoxels.x);
+	float yScale = int(chunkSizeInVoxels.y);
+	float zScale = int(chunkSizeInVoxels.z);
 
 	currentInstancePosition = currentInstancePosition >> voxelCoordBitShiftBy;
 	currentInstancePosition = currentInstancePosition >> voxelCoordBitShiftBy;
