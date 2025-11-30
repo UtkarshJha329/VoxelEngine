@@ -330,7 +330,7 @@ public:
 	size_t sizeOfPoolInBytes;
 
 
-	unsigned int numLocalAllocators = 100;
+	unsigned int numLocalAllocators = 70;
 	std::vector<LocalMemoryAllocator> localMemoryAllocators;
 	ThreadSafeUnorderedMap<unsigned int, unsigned int> indexMappedInAllocatorID;
 
