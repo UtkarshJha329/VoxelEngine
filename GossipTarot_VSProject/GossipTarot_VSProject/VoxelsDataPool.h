@@ -3,7 +3,7 @@
 #include <unordered_map>
 #include <utility>
 
-#include <map>
+#include <List>
 #include <mutex>
 
 
@@ -29,7 +29,7 @@ public:
 	size_t sizeOfPoolInBytes;
 
 	std::unordered_map<unsigned int, unsigned int> usedBucketsIndexAndSize;
-	std::map<unsigned int, unsigned int> freeBucketsSortedByPositionInMegaArray;
+	std::list<FreeBucket> freeBucketsSortedByPositionInMegaArray;
 	std::mutex m_mutex;
 
 	VoxelsDataPool(unsigned int _numVoxelsPerFaceClassifications, std::vector<unsigned int> _NumVoxelPerFaceClassification, std::vector<unsigned int> numBucketsPerClassification, unsigned int _megaVoxelsPerFaceDataBufferObjectBindingLocation) {
@@ -48,7 +48,7 @@ public:
 		);
 		megaVoxelsPerFaceDataBufferGPUPointer = reinterpret_cast<uint32_t*>(mappedPointerToBuffer);
 
-		freeBucketsSortedByPositionInMegaArray.insert({0, numVoxelsDataToStore});
+		freeBucketsSortedByPositionInMegaArray.push_back({0, numVoxelsDataToStore});
 	}
 
 	~VoxelsDataPool() {
@@ -88,12 +88,12 @@ public:
 			/// AND TEST 
 			/// number face bucket properly with unordered map for num voxels for index and not WRONGLY input lod.
 
-			freeBucketsSortedByPositionInMegaArray.insert({ newBucket.indexOffsetIntoMegaArray, newBucket.sizeInIndexCountInMegaArray });
-			//auto itFB = freeBucketsSortedByPositionInMegaArray.begin();
-			//while (itFB != freeBucketsSortedByPositionInMegaArray.end() && itFB->indexOffsetIntoMegaArray < newBucket.indexOffsetIntoMegaArray) {
-			//	itFB++;
-			//}
-			//freeBucketsSortedByPositionInMegaArray.insert(itFB, newBucket);
+			//freeBucketsSortedByPositionInMegaArray.push_back({ newBucket.indexOffsetIntoMegaArray, newBucket.sizeInIndexCountInMegaArray });
+			auto itFB = freeBucketsSortedByPositionInMegaArray.begin();
+			while (itFB != freeBucketsSortedByPositionInMegaArray.end() && itFB->indexOffsetIntoMegaArray < newBucket.indexOffsetIntoMegaArray) {
+				itFB++;
+			}
+			freeBucketsSortedByPositionInMegaArray.insert(itFB, newBucket);
 
 			usedBucketsIndexAndSize.erase(curFaceVoxelDataPoolMetadata.voxelDataBucketOffsetIntoMegaArrayIndex);
 
@@ -101,7 +101,7 @@ public:
 
 			//std::cout << "D : " << curFaceVoxelDataPoolMetadata.voxelDataBucketOffsetIntoMegaArrayIndex << ", numVoxels : " << newBucket.sizeInIndexCountInMegaArray << std::endl;
 
-			Defrag();
+			//Defrag();
 		}
 		else {
 			std::cout << "Trying to free bucket that was not in use : " << curFaceVoxelDataPoolMetadata.voxelDataBucketOffsetIntoMegaArrayIndex << std::endl;
@@ -117,53 +117,57 @@ private:
 
 			std::lock_guard<std::mutex> lock(m_mutex);
 
-			if (!freeBucketsSortedByPositionInMegaArray.empty()) {
-				auto it = freeBucketsSortedByPositionInMegaArray.begin();
+			bool found = false;
 
-				while (it != freeBucketsSortedByPositionInMegaArray.end()) {
-					if (it->second > numVoxelsPerFace) {
+			while (!found) {
 
-						freePoolOffsetInMegaVoxelsArrayIndex = it->first;
+				if (!freeBucketsSortedByPositionInMegaArray.empty()) {
 
-						unsigned int remainingSize = it->second - numVoxelsPerFace;
+					auto it = freeBucketsSortedByPositionInMegaArray.begin();
 
-						it = freeBucketsSortedByPositionInMegaArray.erase(it);
-						freeBucketsSortedByPositionInMegaArray.insert({ freePoolOffsetInMegaVoxelsArrayIndex + numVoxelsPerFace, remainingSize });
+					while (it != freeBucketsSortedByPositionInMegaArray.end()) {
+						if (it->sizeInIndexCountInMegaArray > numVoxelsPerFace) {
 
-						//std::cout << "Created by SPLITTING LARGE BLOCK : " << freePoolOffsetInMegaVoxelsArrayIndex  << ", " << numVoxelsPerFace << std::endl;
+							freePoolOffsetInMegaVoxelsArrayIndex = it->indexOffsetIntoMegaArray;
 
-						usedBucketsIndexAndSize.insert({ freePoolOffsetInMegaVoxelsArrayIndex, numVoxelsPerFace });
+							it->indexOffsetIntoMegaArray = freePoolOffsetInMegaVoxelsArrayIndex + numVoxelsPerFace;
+							it->sizeInIndexCountInMegaArray = it->sizeInIndexCountInMegaArray - numVoxelsPerFace;
 
-						return true;
+							//std::cout << "Created by SPLITTING LARGE BLOCK : " << freePoolOffsetInMegaVoxelsArrayIndex  << ", " << numVoxelsPerFace << std::endl;
+
+							usedBucketsIndexAndSize.insert({ freePoolOffsetInMegaVoxelsArrayIndex, numVoxelsPerFace });
+
+							return true;
+						}
+						else if (it->sizeInIndexCountInMegaArray == numVoxelsPerFace) {
+							freePoolOffsetInMegaVoxelsArrayIndex = it->indexOffsetIntoMegaArray;
+
+							freeBucketsSortedByPositionInMegaArray.erase(it);
+
+							//std::cout << "Created by DELETING BLOCK : " << freePoolOffsetInMegaVoxelsArrayIndex << ", " << numVoxelsPerFace << std::endl;
+							usedBucketsIndexAndSize.insert({ freePoolOffsetInMegaVoxelsArrayIndex, numVoxelsPerFace });
+
+							return true;
+
+						}
+						else {
+							it++;
+						}
 					}
-					else if (it->second == numVoxelsPerFace) {
-						freePoolOffsetInMegaVoxelsArrayIndex = it->first;
+					
+					DefragUntilSize(numVoxelsPerFace);
+					std::cout << "Failed to find bucket with valid size." << std::endl;
 
-						freeBucketsSortedByPositionInMegaArray.erase(it);
-
-						//std::cout << "Created by DELETING BLOCK : " << freePoolOffsetInMegaVoxelsArrayIndex << ", " << numVoxelsPerFace << std::endl;
-						usedBucketsIndexAndSize.insert({ freePoolOffsetInMegaVoxelsArrayIndex, numVoxelsPerFace });
-
-						return true;
-
-					}
-					else {
-						it++;
-					}
+					//return false;
 				}
-
-				std::cout << "Failed to find bucket with valid size." << std::endl;
-
-				return false;
 			}
-
 			return false;
 		}
 	}
 
 	void Defrag() {
 		
-		unsigned int numDefragItterations = 10;
+		unsigned int numDefragItterations = 1;
 		for (int i = 0; i < numDefragItterations; i++)
 		{
 			auto current_it = freeBucketsSortedByPositionInMegaArray.begin();
@@ -172,13 +176,40 @@ private:
 			while (current_it != freeBucketsSortedByPositionInMegaArray.end()) {
 
 				auto prev_it = std::prev(current_it);
-				if (prev_it->first + prev_it->second == current_it->first) {
+				if (prev_it->indexOffsetIntoMegaArray + prev_it->sizeInIndexCountInMegaArray == current_it->indexOffsetIntoMegaArray) {
 
-					prev_it->second += current_it->second;
+					prev_it->sizeInIndexCountInMegaArray += current_it->sizeInIndexCountInMegaArray;
 
 					current_it = freeBucketsSortedByPositionInMegaArray.erase(current_it);
 
 					current_it--;
+				}
+				current_it++;
+			}
+		}
+	}
+
+	void DefragUntilSize(unsigned int sizeNeeded) {
+		
+		while(true)
+		{
+			auto current_it = freeBucketsSortedByPositionInMegaArray.begin();
+			current_it++;
+
+			while (current_it != freeBucketsSortedByPositionInMegaArray.end()) {
+
+				auto prev_it = std::prev(current_it);
+				if (prev_it->indexOffsetIntoMegaArray + prev_it->sizeInIndexCountInMegaArray == current_it->indexOffsetIntoMegaArray) {
+
+					prev_it->sizeInIndexCountInMegaArray += current_it->sizeInIndexCountInMegaArray;
+
+					current_it = freeBucketsSortedByPositionInMegaArray.erase(current_it);
+
+					current_it--;
+
+					if (prev_it->sizeInIndexCountInMegaArray >= sizeNeeded) {
+						return;
+					}
 				}
 				current_it++;
 			}
