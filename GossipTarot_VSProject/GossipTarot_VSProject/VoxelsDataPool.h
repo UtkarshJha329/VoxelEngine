@@ -155,6 +155,7 @@ private:
 				}
 
 				std::cout << "Failed to find bucket with valid size." << std::endl;
+				// If stuck in an infinite loop after this, it's because defrag until size did not find any bucket suitable for this size even after defrag, MEMORY NEEDS TO BE INCREASED.
 				DefragUntilSize(numVoxelsPerFace);
 			}
 
