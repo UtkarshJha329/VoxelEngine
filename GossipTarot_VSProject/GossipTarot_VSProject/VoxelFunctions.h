@@ -1,6 +1,8 @@
 #pragma once
 
 #include <iostream>
+#include <cmath>
+#include <omp.h> // OpenMP
 
 #include "GLMIncludes.h"
 #include "MeshUtils.h"
@@ -20,15 +22,26 @@ bool VoxelIndexLiesInsideChunk(const Vector3Int& chunkSizeInVoxels, const Vector
 		curVoxelIndex.z >= chunkSizeInVoxels.z));
 
 }
+//
+//bool VoxelIndexLiesInsideChunk(const Vector3Int& chunkSizeInVoxels, const Vector3Int& curVoxelIndex, int extraVoxelsOnOneSide) {
+//
+//	return !((curVoxelIndex.x < -extraVoxelsOnOneSide ||
+//		curVoxelIndex.y < -extraVoxelsOnOneSide ||
+//		curVoxelIndex.z < -extraVoxelsOnOneSide ||
+//		curVoxelIndex.x >= chunkSizeInVoxels.x + extraVoxelsOnOneSide ||
+//		curVoxelIndex.y >= chunkSizeInVoxels.y + extraVoxelsOnOneSide ||
+//		curVoxelIndex.z >= chunkSizeInVoxels.z + extraVoxelsOnOneSide));
+//
+//}
 
 bool VoxelIndexLiesInsideChunk(const Vector3Int& chunkSizeInVoxels, const Vector3Int& curVoxelIndex, int extraVoxelsOnOneSide) {
 
-	return !((curVoxelIndex.x < -extraVoxelsOnOneSide ||
-		curVoxelIndex.y < -extraVoxelsOnOneSide ||
-		curVoxelIndex.z < -extraVoxelsOnOneSide ||
-		curVoxelIndex.x >= chunkSizeInVoxels.x + extraVoxelsOnOneSide ||
-		curVoxelIndex.y >= chunkSizeInVoxels.y + extraVoxelsOnOneSide ||
-		curVoxelIndex.z >= chunkSizeInVoxels.z + extraVoxelsOnOneSide));
+	return ((curVoxelIndex.x >= -extraVoxelsOnOneSide &&
+		curVoxelIndex.y >= -extraVoxelsOnOneSide &&
+		curVoxelIndex.z >= -extraVoxelsOnOneSide &&
+		curVoxelIndex.x < chunkSizeInVoxels.x + extraVoxelsOnOneSide &&
+		curVoxelIndex.y < chunkSizeInVoxels.y + extraVoxelsOnOneSide &&
+		curVoxelIndex.z < chunkSizeInVoxels.z + extraVoxelsOnOneSide));
 
 }
 
@@ -185,6 +198,221 @@ void GenerateChunkVoxelPositionsOnGPUAsSSBOAsTriangleWithVoxelDataPoolForIndirec
 	GPU_WriteFaceVoxelDataToFreeBucketAndFillMetadata(voxelsDataPool, compressedChunkFrontFaceVoxelPositions, curChunkVoxelsDataPoolMetadata.frontFaceVoxelsDataPoolMetadata, numFrontFaceIndicesInChunk, numFrontFaceVoxels, curChunkLODLevel);
 	GPU_WriteFaceVoxelDataToFreeBucketAndFillMetadata(voxelsDataPool, compressedChunkBackFaceVoxelPositions, curChunkVoxelsDataPoolMetadata.backFaceVoxelsDataPoolMetadata, numBackFaceIndicesInChunk, numBackFaceVoxels, curChunkLODLevel);
 }
+
+
+//
+//void GenerateChunkVoxelPositionsOnGPUAsSSBOAsTriangleWithVoxelDataPoolForIndirectDrawCommands(
+//    const std::vector<float>& chunkNoise,
+//    const Vector3Int& chunkIndex,
+//    const Vector3Int& chunkSizeInVoxels,
+//    const Vector3Int& worldSizeInChunks,
+//    const int& curChunkLODLevel,
+//    VoxelsDataPool& voxelsDataPool,
+//    ChunkVoxelsDataPoolMetadata& curChunkVoxelsDataPoolMetadata)
+//{
+//    const unsigned int bitShiftPosX = 0;
+//    const unsigned int bitShiftPosY = 6;
+//    const unsigned int bitShiftPosZ = 12;
+//    const unsigned int bitShiftPosFace = 18;
+//
+//    const unsigned int bitShiftFaceIDTop = 0;
+//    const unsigned int bitShiftFaceIDBottom = 1;
+//    const unsigned int bitShiftFaceIDLeft = 2;
+//    const unsigned int bitShiftFaceIDRight = 3;
+//    const unsigned int bitShiftFaceIDFront = 4;
+//    const unsigned int bitShiftFaceIDBack = 5;
+//
+//    // Global output containers (will be appended-to by threads at end)
+//    std::vector<unsigned int> compressedChunkTopFaceVoxelPositions;
+//    std::vector<unsigned int> compressedChunkBottomFaceVoxelPositions;
+//    std::vector<unsigned int> compressedChunkLeftFaceVoxelPositions;
+//    std::vector<unsigned int> compressedChunkRightFaceVoxelPositions;
+//    std::vector<unsigned int> compressedChunkFrontFaceVoxelPositions;
+//    std::vector<unsigned int> compressedChunkBackFaceVoxelPositions;
+//
+//    unsigned int numTopFaceIndicesInChunk = 0;
+//    unsigned int numBottomFaceIndicesInChunk = 0;
+//    unsigned int numLeftFaceIndicesInChunk = 0;
+//    unsigned int numRightFaceIndicesInChunk = 0;
+//    unsigned int numFrontFaceIndicesInChunk = 0;
+//    unsigned int numBackFaceIndicesInChunk = 0;
+//
+//    unsigned int numTopFaceVoxels = 0;
+//    unsigned int numBottomFaceVoxels = 0;
+//    unsigned int numLeftFaceVoxels = 0;
+//    unsigned int numRightFaceVoxels = 0;
+//    unsigned int numFrontFaceVoxels = 0;
+//    unsigned int numBackFaceVoxels = 0;
+//
+//    int currentVoxelLODSize = static_cast<int>(std::pow(2, curChunkLODLevel));
+//    int extraVoxelsOnOneSide = currentVoxelLODSize;
+//    int extraVoxelsTotalPadding = 2 * extraVoxelsOnOneSide;
+//
+//    // Estimate: helps reduce reallocs (not necessary but good)
+//    // Very rough upper bound: every voxel could produce up to 6 faces * 3 indices (triangle)
+//    const size_t estimateTotalVoxels = (chunkSizeInVoxels.x / currentVoxelLODSize + 1)
+//        * (chunkSizeInVoxels.y / currentVoxelLODSize + 1)
+//        * (chunkSizeInVoxels.z / currentVoxelLODSize + 1);
+//    const size_t roughReserve = std::min<size_t>(estimateTotalVoxels * 6 * 3, 1 << 24);
+//
+//    // OPTIONAL: reserve some space for global vectors to reduce reallocation during merges
+//    compressedChunkTopFaceVoxelPositions.reserve(1024);
+//    compressedChunkBottomFaceVoxelPositions.reserve(1024);
+//    compressedChunkLeftFaceVoxelPositions.reserve(1024);
+//    compressedChunkRightFaceVoxelPositions.reserve(1024);
+//    compressedChunkFrontFaceVoxelPositions.reserve(1024);
+//    compressedChunkBackFaceVoxelPositions.reserve(1024);
+//
+//    // Parallel region with per-thread locals
+//#pragma omp parallel
+//    {
+//        // Per-thread local buffers and counters
+//        std::vector<unsigned int> top_local;    top_local.reserve(1024);
+//        std::vector<unsigned int> bottom_local; bottom_local.reserve(1024);
+//        std::vector<unsigned int> left_local;   left_local.reserve(1024);
+//        std::vector<unsigned int> right_local;  right_local.reserve(1024);
+//        std::vector<unsigned int> front_local;  front_local.reserve(1024);
+//        std::vector<unsigned int> back_local;   back_local.reserve(1024);
+//
+//        unsigned int top_indices_local = 0;
+//        unsigned int bottom_indices_local = 0;
+//        unsigned int left_indices_local = 0;
+//        unsigned int right_indices_local = 0;
+//        unsigned int front_indices_local = 0;
+//        unsigned int back_indices_local = 0;
+//
+//        unsigned int top_voxels_local = 0;
+//        unsigned int bottom_voxels_local = 0;
+//        unsigned int left_voxels_local = 0;
+//        unsigned int right_voxels_local = 0;
+//        unsigned int front_voxels_local = 0;
+//        unsigned int back_voxels_local = 0;
+//
+//        // Parallel for with collapse(3) over z,x,y (flat iteration space)
+//#pragma omp for collapse(3) schedule(static)
+//        for (int z = 0; z < chunkSizeInVoxels.z; z += currentVoxelLODSize) {
+//            for (int x = 0; x < chunkSizeInVoxels.x; x += currentVoxelLODSize) {
+//                for (int y = 0; y < chunkSizeInVoxels.y; y += currentVoxelLODSize) {
+//
+//                    int currentNoiseIndex = (x + extraVoxelsOnOneSide) + ((z + extraVoxelsOnOneSide) * (chunkSizeInVoxels.x + extraVoxelsTotalPadding));
+//                    float voxelHeight = chunkNoise[currentNoiseIndex] * (chunkSizeInVoxels.y * worldSizeInChunks.y);
+//
+//                    if ((chunkSizeInVoxels.y * chunkIndex.y) + y <= voxelHeight) {
+//                        unsigned int curVoxelCompactPos = (static_cast<unsigned int>(x) << bitShiftPosX);
+//                        curVoxelCompactPos += (static_cast<unsigned int>(y) << bitShiftPosY);
+//                        curVoxelCompactPos += (static_cast<unsigned int>(z) << bitShiftPosZ);
+//
+//                        // For each face: call NoiseExistsInNeighbour (must be thread-safe — it reads const data)
+//                        // and if neighbour absent, push to the thread-local vector and update local counters.
+//                        if (!NoiseExistsInNeighbour(chunkNoise, extraVoxelsOnOneSide, extraVoxelsTotalPadding,
+//                            chunkIndex, chunkSizeInVoxels, worldSizeInChunks, Vector3Int{ x, y, z },
+//                            Vector3Int{ 0, 1, 0 } *currentVoxelLODSize)) {
+//                            AddBitShiftFaceIDToCompressedVoxelPositionAsTriangleForSSBOOfIndirectDrawCommands(
+//                                top_local, top_indices_local, curVoxelCompactPos, (bitShiftFaceIDTop << bitShiftPosFace));
+//                            ++top_voxels_local;
+//                        }
+//
+//                        if (!NoiseExistsInNeighbour(chunkNoise, extraVoxelsOnOneSide, extraVoxelsTotalPadding,
+//                            chunkIndex, chunkSizeInVoxels, worldSizeInChunks, Vector3Int{ x, y, z },
+//                            Vector3Int{ 0, -1, 0 } *currentVoxelLODSize)) {
+//                            AddBitShiftFaceIDToCompressedVoxelPositionAsTriangleForSSBOOfIndirectDrawCommands(
+//                                bottom_local, bottom_indices_local, curVoxelCompactPos, (bitShiftFaceIDBottom << bitShiftPosFace));
+//                            ++bottom_voxels_local;
+//                        }
+//
+//                        if (!NoiseExistsInNeighbour(chunkNoise, extraVoxelsOnOneSide, extraVoxelsTotalPadding,
+//                            chunkIndex, chunkSizeInVoxels, worldSizeInChunks, Vector3Int{ x, y, z },
+//                            Vector3Int{ -1, 0, 0 } *currentVoxelLODSize)) {
+//                            AddBitShiftFaceIDToCompressedVoxelPositionAsTriangleForSSBOOfIndirectDrawCommands(
+//                                left_local, left_indices_local, curVoxelCompactPos, (bitShiftFaceIDLeft << bitShiftPosFace));
+//                            ++left_voxels_local;
+//                        }
+//
+//                        if (!NoiseExistsInNeighbour(chunkNoise, extraVoxelsOnOneSide, extraVoxelsTotalPadding,
+//                            chunkIndex, chunkSizeInVoxels, worldSizeInChunks, Vector3Int{ x, y, z },
+//                            Vector3Int{ 1, 0, 0 } *currentVoxelLODSize)) {
+//                            AddBitShiftFaceIDToCompressedVoxelPositionAsTriangleForSSBOOfIndirectDrawCommands(
+//                                right_local, right_indices_local, curVoxelCompactPos, (bitShiftFaceIDRight << bitShiftPosFace));
+//                            ++right_voxels_local;
+//                        }
+//
+//                        if (!NoiseExistsInNeighbour(chunkNoise, extraVoxelsOnOneSide, extraVoxelsTotalPadding,
+//                            chunkIndex, chunkSizeInVoxels, worldSizeInChunks, Vector3Int{ x, y, z },
+//                            Vector3Int{ 0, 0, 1 } *currentVoxelLODSize)) {
+//                            AddBitShiftFaceIDToCompressedVoxelPositionAsTriangleForSSBOOfIndirectDrawCommands(
+//                                front_local, front_indices_local, curVoxelCompactPos, (bitShiftFaceIDFront << bitShiftPosFace));
+//                            ++front_voxels_local;
+//                        }
+//
+//                        if (!NoiseExistsInNeighbour(chunkNoise, extraVoxelsOnOneSide, extraVoxelsTotalPadding,
+//                            chunkIndex, chunkSizeInVoxels, worldSizeInChunks, Vector3Int{ x, y, z },
+//                            Vector3Int{ 0, 0, -1 } *currentVoxelLODSize)) {
+//                            AddBitShiftFaceIDToCompressedVoxelPositionAsTriangleForSSBOOfIndirectDrawCommands(
+//                                back_local, back_indices_local, curVoxelCompactPos, (bitShiftFaceIDBack << bitShiftPosFace));
+//                            ++back_voxels_local;
+//                        }
+//                    }
+//                } // y
+//            } // x
+//        } // z
+//
+//        // Merge thread-local buffers into global containers once per thread.
+//#pragma omp critical
+//        {
+//            if (!top_local.empty()) {
+//                compressedChunkTopFaceVoxelPositions.insert(
+//                    compressedChunkTopFaceVoxelPositions.end(),
+//                    top_local.begin(), top_local.end());
+//                numTopFaceIndicesInChunk += top_indices_local;
+//                numTopFaceVoxels += top_voxels_local;
+//            }
+//            if (!bottom_local.empty()) {
+//                compressedChunkBottomFaceVoxelPositions.insert(
+//                    compressedChunkBottomFaceVoxelPositions.end(),
+//                    bottom_local.begin(), bottom_local.end());
+//                numBottomFaceIndicesInChunk += bottom_indices_local;
+//                numBottomFaceVoxels += bottom_voxels_local;
+//            }
+//            if (!left_local.empty()) {
+//                compressedChunkLeftFaceVoxelPositions.insert(
+//                    compressedChunkLeftFaceVoxelPositions.end(),
+//                    left_local.begin(), left_local.end());
+//                numLeftFaceIndicesInChunk += left_indices_local;
+//                numLeftFaceVoxels += left_voxels_local;
+//            }
+//            if (!right_local.empty()) {
+//                compressedChunkRightFaceVoxelPositions.insert(
+//                    compressedChunkRightFaceVoxelPositions.end(),
+//                    right_local.begin(), right_local.end());
+//                numRightFaceIndicesInChunk += right_indices_local;
+//                numRightFaceVoxels += right_voxels_local;
+//            }
+//            if (!front_local.empty()) {
+//                compressedChunkFrontFaceVoxelPositions.insert(
+//                    compressedChunkFrontFaceVoxelPositions.end(),
+//                    front_local.begin(), front_local.end());
+//                numFrontFaceIndicesInChunk += front_indices_local;
+//                numFrontFaceVoxels += front_voxels_local;
+//            }
+//            if (!back_local.empty()) {
+//                compressedChunkBackFaceVoxelPositions.insert(
+//                    compressedChunkBackFaceVoxelPositions.end(),
+//                    back_local.begin(), back_local.end());
+//                numBackFaceIndicesInChunk += back_indices_local;
+//                numBackFaceVoxels += back_voxels_local;
+//            }
+//        } // critical
+//    } // parallel
+//
+//    // Now the global vectors and counters contain merged results.
+//    // Write to GPU as before (single threaded)
+//    GPU_WriteFaceVoxelDataToFreeBucketAndFillMetadata(voxelsDataPool, compressedChunkTopFaceVoxelPositions, curChunkVoxelsDataPoolMetadata.topFaceVoxelsDataPoolMetadata, numTopFaceIndicesInChunk, numTopFaceVoxels, curChunkLODLevel);
+//    GPU_WriteFaceVoxelDataToFreeBucketAndFillMetadata(voxelsDataPool, compressedChunkBottomFaceVoxelPositions, curChunkVoxelsDataPoolMetadata.bottomFaceVoxelsDataPoolMetadata, numBottomFaceIndicesInChunk, numBottomFaceVoxels, curChunkLODLevel);
+//    GPU_WriteFaceVoxelDataToFreeBucketAndFillMetadata(voxelsDataPool, compressedChunkLeftFaceVoxelPositions, curChunkVoxelsDataPoolMetadata.leftFaceVoxelsDataPoolMetadata, numLeftFaceIndicesInChunk, numLeftFaceVoxels, curChunkLODLevel);
+//    GPU_WriteFaceVoxelDataToFreeBucketAndFillMetadata(voxelsDataPool, compressedChunkRightFaceVoxelPositions, curChunkVoxelsDataPoolMetadata.rightFaceVoxelsDataPoolMetadata, numRightFaceIndicesInChunk, numRightFaceVoxels, curChunkLODLevel);
+//    GPU_WriteFaceVoxelDataToFreeBucketAndFillMetadata(voxelsDataPool, compressedChunkFrontFaceVoxelPositions, curChunkVoxelsDataPoolMetadata.frontFaceVoxelsDataPoolMetadata, numFrontFaceIndicesInChunk, numFrontFaceVoxels, curChunkLODLevel);
+//    GPU_WriteFaceVoxelDataToFreeBucketAndFillMetadata(voxelsDataPool, compressedChunkBackFaceVoxelPositions, curChunkVoxelsDataPoolMetadata.backFaceVoxelsDataPoolMetadata, numBackFaceIndicesInChunk, numBackFaceVoxels, curChunkLODLevel);
+//}
 
 void CPU_WriteFaceDataToDrawCommands(const unsigned int& packedChunkIndex, const FaceVoxelsDataPoolMetadata& faceVoxelsDataPoolMetadata, ChunksPerFaceIndirectDrawCommands& chunksPerFaceIndirectDrawCommands) {
 

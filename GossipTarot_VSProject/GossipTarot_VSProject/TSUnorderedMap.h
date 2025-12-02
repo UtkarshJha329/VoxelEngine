@@ -53,23 +53,6 @@ public:
         }
     }
 
-    // Try insert only; returns true if inserted, false if key already existed
-    bool try_insert(const Key& key, const T& value) {
-        Bucket& b = get_bucket(key);
-        std::lock_guard<std::mutex> lock(b.mtx);
-        auto [it, inserted] = b.map.emplace(key, value);
-        return inserted;
-    }
-
-    // try_emplace with perfect-forwarding
-    template<typename... Args>
-    bool try_emplace(const Key& key, Args&&... args) {
-        Bucket& b = get_bucket(key);
-        std::lock_guard<std::mutex> lock(b.mtx);
-        auto [it, inserted] = b.map.try_emplace(key, std::forward<Args>(args)...);
-        return inserted;
-    }
-
     // Erase key; returns true if erased
     bool erase(const Key& key) {
         Bucket& b = get_bucket(key);
@@ -101,60 +84,6 @@ public:
         std::lock_guard<std::mutex> lock(b.mtx);
         auto it = b.map.find(key);
         return it->second; // copy
-    }
-
-    // Acquire or create: returns a copy of existing or inserted default value
-    T get_or_insert(const Key& key, const T& defaultValue) {
-        Bucket& b = get_bucket(key);
-        std::lock_guard<std::mutex> lock(b.mtx);
-        auto it = b.map.find(key);
-        if (it == b.map.end()) {
-            auto [newIt, inserted] = b.map.emplace(key, defaultValue);
-            return newIt->second; // copy
-        }
-        return it->second; // copy
-    }
-
-    // Update-in-place using a callback under lock: callback receives T& (if present) and returns bool whether modified
-    // If key doesn't exist, callback won't be called (use insert_or_assign or try_emplace)
-    template<typename Func>
-    bool update_if_exists(const Key& key, Func&& updater) {
-        Bucket& b = get_bucket(key);
-        std::lock_guard<std::mutex> lock(b.mtx);
-        auto it = b.map.find(key);
-        if (it == b.map.end()) return false;
-        updater(it->second);
-        return true;
-    }
-
-    // Apply a function to every element (locks buckets one at a time). The callable receives (const Key&, T&).
-    // NOTE: The caller must avoid long blocking inside the function to avoid hurting concurrency.
-    template<typename Func>
-    void for_each(Func&& f) {
-        for (auto& bucket : buckets) {
-            std::lock_guard<std::mutex> lock(bucket.mtx);
-            for (auto& kv : bucket.map) {
-                f(kv.first, kv.second);
-            }
-        }
-    }
-
-    // Return a snapshot (copy) of the whole map. Useful when you need to iterate safely across all elements.
-    std::unordered_map<Key, T, Hash, KeyEqual> snapshot() const {
-        std::unordered_map<Key, T, Hash, KeyEqual> result;
-        // Reserve approximately (optional)
-        // We can't know exact size cheaply without locking all buckets, so we accumulate.
-        size_t total = 0;
-        for (const auto& b : buckets) {
-            std::lock_guard<std::mutex> lock(const_cast<std::mutex&>(b.mtx));
-            total += b.map.size();
-        }
-        result.reserve(total);
-        for (const auto& b : buckets) {
-            std::lock_guard<std::mutex> lock(const_cast<std::mutex&>(b.mtx));
-            for (const auto& kv : b.map) result.emplace(kv.first, kv.second);
-        }
-        return result;
     }
 
     // Total size (expensive: locks all buckets)

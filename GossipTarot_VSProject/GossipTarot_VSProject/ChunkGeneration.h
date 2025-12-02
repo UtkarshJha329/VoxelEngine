@@ -64,7 +64,11 @@ int CurChunkLODLevel(
 	if (xDist <= 1024.0 && yDist <= 1024.0 && zDist <= 1024.0) {
 		return 0;
 	}
-	else if ((xDist > 2524.0) || (yDist > 2524.0) || (zDist > 2524.0)) {
+	else if ((xDist > 2824.0) || (yDist > 2824.0) || (zDist > 2824.0)) {
+		return 5;
+	}
+	//else if ((xDist > 2524.0) || (yDist > 2524.0) || (zDist > 2524.0)) {
+	else if ((xDist > 2524.0 && xDist <= 2824.0) || (yDist > 2524.0 && yDist <= 2824.0) || (zDist > 2524.0 && zDist <= 2824.0)) {
 		return 4;
 	}
 	//else if ((xDist > 256.0) || (zDist > 256.0)) {
@@ -172,7 +176,7 @@ void GenerateChunkAndUploadTo_GPUAndAddToIndirectRenderCommandVectorOn_CPU(
 
 		unsigned int flattenedChunkIndexForVoxelsDataPoolMetadatas = GetFlattenedChunkIndexForChunksVoxelsDataPoolMetadatas(worldSizeInChunks, chunkIndex);
 
-		chunksVoxelsDataPoolMetadatas[flattenedChunkIndexForVoxelsDataPoolMetadatas].packedChunkIndex = chunkIndex.x + (chunkIndex.y << 7) + (chunkIndex.z << 14) + (LOD_Level << 21);
+		chunksVoxelsDataPoolMetadatas[flattenedChunkIndexForVoxelsDataPoolMetadatas].packedChunkIndex = chunkIndex.x + (chunkIndex.y << 8) + (chunkIndex.z << 16) + (LOD_Level << 24);
 
 		GenerateChunkVoxelPositionsOnGPUAsSSBOAsTriangleWithVoxelDataPoolForIndirectDrawCommands(noiseOutput, chunkIndex, chunkSizeInVoxels, worldSizeInChunks, LOD_Level, voxelsDataPool, chunksVoxelsDataPoolMetadatas[flattenedChunkIndexForVoxelsDataPoolMetadatas]);
 

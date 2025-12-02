@@ -184,6 +184,7 @@
     <ClInclude Include="ChunksPerFaceDrawElementsIndirectCommands.h" />
     <ClInclude Include="CommonChunkBoundingMesh.h" />
     <ClInclude Include="FileHandling.h" />
+    <ClInclude Include="FrameSlicer.h" />
     <ClInclude Include="GLMIncludes.h" />
     <ClInclude Include="GlobalConstants.h" />
     <ClInclude Include="Input.h" />
@@ -200,6 +201,7 @@
     <ClInclude Include="Transform.h" />
     <ClInclude Include="TSQueue.h" />
     <ClInclude Include="TSUnorderedMap.h" />
+    <ClInclude Include="NotTSVector.h" />
     <ClInclude Include="UIRect.h" />
     <ClInclude Include="UISimulation.h" />
     <ClInclude Include="UIText.h" />

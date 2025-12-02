@@ -152,8 +152,8 @@ vec2 GetCurrentTexCoordBasedOnVertexIDAndCurFace(uint curFaceIndex) {
 void main()
 {
 //	ivec3 numVoxelsInChunk = ivec3(32, 32, 32);
-	uint maxChunkLocalCoord = 127;
-	uint chunkPackedCoordShiftBy = 7;
+	uint maxChunkLocalCoord = 255;
+	uint chunkPackedCoordShiftBy = 8;
 
 	uint voxelCoordBitShiftBy = 6;
 

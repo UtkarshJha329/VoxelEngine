@@ -400,8 +400,9 @@ int main() {
 
 
 	// VVV LIMITED BY COMPRESSION TO INT IN PACKED CHUNK INDEX AND NUMBER OF COMPUTE THREADS DISPATCHED! Currently limited by each coordinate having 7 bits, i.e max 127 for each coord but with compute threads dispatched it is limited to __.
+	Vector3Int worldSizeInChunks = { 200, 16, 200 };
 	//Vector3Int worldSizeInChunks = { 120, 16, 120 };
-	Vector3Int worldSizeInChunks = { 96, 16, 96 };
+	//Vector3Int worldSizeInChunks = { 96, 16, 96 };
 	//Vector3Int worldSizeInChunks = { 64, 16, 64 };
 	//Vector3Int worldSizeInChunks = { 32, 16, 32 };
 	//Vector3Int worldSizeInChunks = { 16, 16, 16 };
@@ -423,7 +424,7 @@ int main() {
 
 	size_t sizeOfPoolInBytes = numBuckets * numVoxelDatasPerBucket * sizeof(unsigned int);
 
-	const unsigned int numVoxelsPerFaceClassifications = 10;
+	const unsigned int numClassifications = 11;
 
 	std::vector<unsigned int> NumVoxelPerFaceClassification = {
 		5,
@@ -435,23 +436,25 @@ int main() {
 		2000,
 		5000,
 		6000,
-		7000
+		7000,
+		8000
 	};
 
 	std::vector<unsigned int> numBucketsPerClassification = {
-		70000,
-		70000,
-		70000,
-		25000,
-		40000,
+		350000,
+		90000,
 		30000,
+		25000,
+		15000,
+		6000,
 		5000,
 		5000,
-		5000,
-		100
+		50,
+		10,
+		10
 	};
-	//VoxelsDataPool voxelsDataPool(numVoxelsPerFaceClassifications, NumVoxelPerFaceClassification, numBucketsPerClassification, megaVoxelsPerFaceDataBufferObjectBindingLocation);
-	VoxelsDataPool voxelsDataPool(megaVoxelsPerFaceDataBufferObjectBindingLocation);
+	VoxelsDataPool voxelsDataPool(numClassifications, NumVoxelPerFaceClassification, numBucketsPerClassification, megaVoxelsPerFaceDataBufferObjectBindingLocation);
+	//VoxelsDataPool voxelsDataPool(megaVoxelsPerFaceDataBufferObjectBindingLocation);
 
 
 	unsigned int numFaces = worldSizeInChunks.x * worldSizeInChunks.y * worldSizeInChunks.z * 6;
@@ -487,6 +490,13 @@ int main() {
 
 	}
 	chunkGenerationFutures.clear();
+	
+	//std::cout << voxelsDataPool.localMemoryAllocator.lastAllocatedFromSpot->indexOffsetIntoMegaArray << std::endl;
+
+	for (unsigned int i = 0; i < numClassifications; i++)
+	{
+		std::cout << NumVoxelPerFaceClassification[i] << " :  " << voxelsDataPool.perClassificationStats[i] << " / " << numBucketsPerClassification[i] << std::endl;
+	}
 
 	unsigned int gpu_cameraFrustumDataBindingPoint = 6;
 	unsigned int gpu_chunksVisibilityFromCullingDataBindingPoint = 7;
@@ -641,6 +651,11 @@ int main() {
 
 						chunksVoxelsDataPoolMetadatas.GPU_UploadChunkVoxelsDataPoolMetadatasToTheGPU(flattenedChunkIndex);
 
+					}
+
+					for (int i = 0; i < newChunkLODLevels.size(); i++)
+					{
+
 						chunkGenerationFutures.push_back(std::async(
 							std::launch::async,
 							GenerateChunkAndUploadTo_GPUAndAddToIndirectRenderCommandVectorOn_CPU,
@@ -656,12 +671,7 @@ int main() {
 							std::ref(chunksPerFaceIndirectDrawCommands),
 							std::ref(chunksVoxelsDataPoolMetadatas.chunksVoxelsDataPoolMetadatas),
 							std::ref(chunksVoxelsDataPoolMetadatas)));
-
 					}
-
-					//for (int i = 0; i < newChunkLODLevels.size(); i++)
-					//{
-					//}
 				}
 			}
 

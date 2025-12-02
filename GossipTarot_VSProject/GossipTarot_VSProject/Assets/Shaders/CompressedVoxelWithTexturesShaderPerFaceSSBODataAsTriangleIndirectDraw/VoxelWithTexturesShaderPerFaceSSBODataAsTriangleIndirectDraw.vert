@@ -181,9 +181,8 @@ vec3 generateConsistentColor(float i, float j, float k) {
 void main()
 {
 //	ivec3 numVoxelsInChunk = ivec3(32, 32, 32);
-	uint maxChunkLocalCoord = 127;
-	uint chunkPackedCoordShiftBy = 7;
-	uint maxLODLevel = 3;
+	uint maxChunkLocalCoord = 255;
+	uint chunkPackedCoordShiftBy = 8;
 
 	uint maxVoxelLocalCoord = 63;
 	uint voxelCoordBitShiftBy = 6;
@@ -215,10 +214,13 @@ void main()
 
 	ivec3 chunkPosition = ivec3(chunkXPos, chunkYPos, chunkZPos);
 
-	uint chunkLODLevel = packedChunkCoords & 7;
+	uint chunkLODLevel = packedChunkCoords & 15;
 
 	if (chunkLODLevel == 0){
 		chunkDebugColour = vec4(1.0);
+	} else if (chunkLODLevel == 5) {
+		chunkDebugColour = vec4(1.0, 1.0, 0.0, 1.0);
+
 	} else if (chunkLODLevel == 4) {
 		chunkDebugColour = vec4(1.0, 0.0, 1.0, 1.0);
 

@@ -180,7 +180,7 @@ void RenderMeshOnGPUWithDrawElementsIndirectCommandsWithComputeShaderAndCullingC
 	const VoxelsDataPool& voxelsDataPool, const ChunksVoxelsDataPoolMetadata& chunksVoxelsDataPoolMetadata,
 	bool& _freezeCulling, bool& _drawBoundingBox) {
 
-	Vector3Int computeDispatchThreads = { 512, 1, 1 };
+	Vector3Int computeDispatchThreads = { 1024, 1, 1 };
 
 	glEnable(GL_DEPTH_TEST);
 	//glDepthFunc(GL_LESS);
