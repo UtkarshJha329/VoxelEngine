@@ -24,6 +24,7 @@
     <ProjectGuid>{b031b4d9-92cb-4d27-b4ac-907a1d60365a}</ProjectGuid>
     <RootNamespace>GossipTarotVSProject</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <ProjectName>VoxelEngine</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
