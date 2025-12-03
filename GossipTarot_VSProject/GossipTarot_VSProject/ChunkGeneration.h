@@ -11,12 +11,15 @@
 #include "FastNoise/FastNoise.h"
 #include "VoxelFunctions.h"
 
+#include "Instrumentor.h"
 
 unsigned int GetFlattenedChunkIndexForChunksVoxelsDataPoolMetadatas(const Vector3Int& worldSizeInChunks, const Vector3Int& chunkIndex) {
 	return chunkIndex.y * worldSizeInChunks.x * worldSizeInChunks.z + chunkIndex.z * worldSizeInChunks.x + chunkIndex.x;
 }
 
 void CreateNoiseWithPadding(std::vector<float>& noiseOutput, FastNoise::SmartNode<FastNoise::FractalFBm>& fnFractal, Vector3Int chunkSizeInVoxels, int LOD_Level, unsigned int i, unsigned int j, unsigned int k) {
+	
+	PROFILE_FUNCTION("Create Chunk Noise");
 
 	int extraVoxelsOnOneSide = pow(2, LOD_Level);
 	int extraVoxelsTotalPadding = 2 * extraVoxelsOnOneSide;
@@ -142,7 +145,7 @@ int CurChunkLODLevel(
 	return LOD_Level;
 }
 
-void GenerateChunkAndUploadTo_GPUAndAddToIndirectRenderCommandVectorOn_CPU(
+void GenerateChunkAndUploadTo_GPU (
 	std::atomic<int>& numGeneratingChunks,
 	const Vector3Int& chunkIndex, std::vector<int>& chunksLODLevel,
 	FastNoise::SmartNode<FastNoise::FractalFBm> fnFractal,
@@ -152,6 +155,8 @@ void GenerateChunkAndUploadTo_GPUAndAddToIndirectRenderCommandVectorOn_CPU(
 	ChunksPerFaceIndirectDrawCommands& chunksPerFaceIndirectDrawCommands,
 	std::vector<ChunkVoxelsDataPoolMetadata>& chunksVoxelsDataPoolMetadatas,
 	ChunksVoxelsDataPoolMetadata& chunksVoxelsDataPoolMetadata) {
+
+	PROFILE_FUNCTION("Generate Chunk And Upload To GPU");
 
 	int i = chunkIndex.x;
 	int j = chunkIndex.y;
@@ -210,7 +215,7 @@ void GenerateChunksAndUploadTo_GPUAndAddToIndirectRenderCommandVectorOn_CPU(std:
 
 					chunkGenerationFutures.push_back(std::async(
 						std::launch::async,
-						GenerateChunkAndUploadTo_GPUAndAddToIndirectRenderCommandVectorOn_CPU,
+						GenerateChunkAndUploadTo_GPU,
 						std::ref(numGeneratingChunks),
 						Vector3Int{ i, j, k },
 						std::ref(chunksLODLevel),               // <-- ref
@@ -231,6 +236,8 @@ void GenerateChunksAndUploadTo_GPUAndAddToIndirectRenderCommandVectorOn_CPU(std:
 }
 
 void CheckChunksForLODChanges(std::vector<int>& currentChunkLODLevels, const Vector3& currentCameraChunkPosition, const Vector3Int& chunkSizeInVoxels, const Vector3Int& worldSizeInChunks, std::vector < std::pair<Vector3Int, int>>& newChunkLODLevels) {
+
+	PROFILE_FUNCTION("Check Chunks For LOD Changes");
 
 	Vector3 halfChunkSize = Vector3(chunkSizeInVoxels / 2);
 

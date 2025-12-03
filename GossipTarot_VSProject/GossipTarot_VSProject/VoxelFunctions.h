@@ -11,6 +11,7 @@
 #include "VoxelsDataPool.h"
 #include "ChunksPerFaceDrawElementsIndirectCommands.h"
 
+#include "Instrumentor.h"
 
 bool VoxelIndexLiesInsideChunk(const Vector3Int& chunkSizeInVoxels, const Vector3Int& curVoxelIndex) {
 
@@ -91,6 +92,9 @@ void GenerateCommonChunkMeshOnGPU(const Vector3Int& chunkSizeInVoxels, MeshOnGPU
 }
 
 void GPU_WriteFaceVoxelDataToFreeBucketAndFillMetadata(VoxelsDataPool& voxelsDataPool, std::vector<unsigned int>& compressedChunkFaceVoxelPositions, FaceVoxelsDataPoolMetadata& curChunkFaceVoxelsDataPoolMetadata, unsigned int& numFaceIndices, const unsigned int& numVoxelsForFace, const unsigned int& curLODLevel) {
+
+	PROFILE_FUNCTION("Write Chunk Data To GPU Free Bucket");
+
 	if (numVoxelsForFace > 0) {
 		if (voxelsDataPool.GPU_WriteFaceVoxelDataToFreeBucket(compressedChunkFaceVoxelPositions, curChunkFaceVoxelsDataPoolMetadata, numVoxelsForFace)) {
 			curChunkFaceVoxelsDataPoolMetadata.numVoxelDataInBucket = numFaceIndices;
@@ -102,6 +106,8 @@ void GPU_WriteFaceVoxelDataToFreeBucketAndFillMetadata(VoxelsDataPool& voxelsDat
 }
 
 void GenerateChunkVoxelPositionsOnGPUAsSSBOAsTriangleWithVoxelDataPoolForIndirectDrawCommands(const std::vector<float>& chunkNoise, const Vector3Int& chunkIndex, const Vector3Int& chunkSizeInVoxels, const Vector3Int& worldSizeInChunks, const int& curChunkLODLevel, VoxelsDataPool& voxelsDataPool, ChunkVoxelsDataPoolMetadata& curChunkVoxelsDataPoolMetadata) {
+
+	PROFILE_FUNCTION("Generate Chunk Mesh");
 
 	//const unsigned int bitShiftPosX = 0;
 	//const unsigned int bitShiftPosY = 5;

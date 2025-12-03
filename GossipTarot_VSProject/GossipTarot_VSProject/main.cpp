@@ -38,6 +38,8 @@
 #include "ChunkGeneration.h"
 #include "ChunksVisibilityFromCulling.h"
 
+#include "Instrumentor.h"
+
 extern "C"
 {
 	__declspec(dllexport) unsigned long NvOptimusEnablement = 0x00000001;
@@ -125,6 +127,8 @@ bool CurrentlyGeneratingAChunk(std::vector<std::future<void>>& chunkGenerationFu
 }
 
 int main() {
+
+	BEGIN_PROFILE_SESSION("Profile");
 
 	glfwInit();
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
@@ -453,8 +457,8 @@ int main() {
 		10,
 		10
 	};
-	VoxelsDataPool voxelsDataPool(numClassifications, NumVoxelPerFaceClassification, numBucketsPerClassification, megaVoxelsPerFaceDataBufferObjectBindingLocation);
-	//VoxelsDataPool voxelsDataPool(megaVoxelsPerFaceDataBufferObjectBindingLocation);
+	//VoxelsDataPool voxelsDataPool(numClassifications, NumVoxelPerFaceClassification, numBucketsPerClassification, megaVoxelsPerFaceDataBufferObjectBindingLocation);
+	VoxelsDataPool voxelsDataPool(megaVoxelsPerFaceDataBufferObjectBindingLocation);
 
 
 	unsigned int numFaces = worldSizeInChunks.x * worldSizeInChunks.y * worldSizeInChunks.z * 6;
@@ -493,10 +497,12 @@ int main() {
 	
 	//std::cout << voxelsDataPool.localMemoryAllocator.lastAllocatedFromSpot->indexOffsetIntoMegaArray << std::endl;
 
-	for (unsigned int i = 0; i < numClassifications; i++)
-	{
-		std::cout << NumVoxelPerFaceClassification[i] << " :  " << voxelsDataPool.perClassificationStats[i] << " / " << numBucketsPerClassification[i] << std::endl;
-	}
+	//std::cout << voxelsDataPool.totalNumAssigned << std::endl;
+
+	//for (unsigned int i = 0; i < numClassifications; i++)
+	//{
+	//	std::cout << NumVoxelPerFaceClassification[i] << " :  " << voxelsDataPool.perClassificationStats[i] << " / " << numBucketsPerClassification[i] << std::endl;
+	//}
 
 	unsigned int gpu_cameraFrustumDataBindingPoint = 6;
 	unsigned int gpu_chunksVisibilityFromCullingDataBindingPoint = 7;
@@ -516,6 +522,8 @@ int main() {
 
 	while (!glfwWindowShouldClose(window))
 	{
+		PROFILE_FUNCTION("Main Loop");
+
 		// Find best placement for this piece of code below VVV. Should it be at the end or at the begining or even somewhere in between?
 		if (GetKeyPressedInThisFrame(KeyCode::KEY_ESCAPE)) {
 			glfwSetWindowShouldClose(window, true);
@@ -658,7 +666,7 @@ int main() {
 
 						chunkGenerationFutures.push_back(std::async(
 							std::launch::async,
-							GenerateChunkAndUploadTo_GPUAndAddToIndirectRenderCommandVectorOn_CPU,
+							GenerateChunkAndUploadTo_GPU,
 							std::ref(numGeneratingChunks),
 							newChunkLODLevels[i].first,
 							std::ref(chunksLODLevel),
@@ -704,7 +712,25 @@ int main() {
 			freezeCulling, drawBoundingBox
 		);
 
+		if (GetKeyReleasedInThisFrame(KeyCode::MOUSE_BUTTON_LEFT)) {
 
+			Mat4x4 viewMatrix = glm::lookAt(cameraTransform.position, glm::normalize(mainCamera.cameraPointingDirection) + cameraTransform.position, mainCamera.cameraUp);
+			Vector4 viewport = Vector4(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
+
+			double mx, my;
+			glfwGetCursorPos(window, &mx, &my);
+
+			int w, h;
+			glfwGetWindowSize(window, &w, &h);
+
+			float depth;
+			glReadPixels(mx, h - my - 1, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, &depth);
+
+			glm::vec3 winPos(mx, h - my - 1, depth);
+			glm::vec3 worldPos = glm::unProject(winPos, viewMatrix, mainCamera.GetProjectionMatrix(), viewport);
+
+			std::cout << worldPos.x << ", " << worldPos.y << ", " << worldPos.z << std::endl;
+		}
 
 		// Render UI
 		glUseProgram(simpleVertexAndFragmentWithCameraWithTexturesShaderProgram.shaderProgramID);
@@ -745,6 +771,8 @@ int main() {
 	}
 
 	glfwTerminate();
+	Instrumentor::Get().EndSession();
+
 	return 0;
 }
 

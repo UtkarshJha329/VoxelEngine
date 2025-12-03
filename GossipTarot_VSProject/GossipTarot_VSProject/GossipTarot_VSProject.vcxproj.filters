@@ -153,6 +153,9 @@
     <ClInclude Include="NotTSVector.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Instrumentor.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CopyFileToFolders Include="FastNoise.dll" />

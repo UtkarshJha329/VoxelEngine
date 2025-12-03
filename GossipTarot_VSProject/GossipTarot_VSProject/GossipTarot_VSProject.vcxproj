@@ -188,6 +188,7 @@
     <ClInclude Include="GLMIncludes.h" />
     <ClInclude Include="GlobalConstants.h" />
     <ClInclude Include="Input.h" />
+    <ClInclude Include="Instrumentor.h" />
     <ClInclude Include="MeshOnCPU.h" />
     <ClInclude Include="MeshOnGpu.h" />
     <ClInclude Include="MeshUtils.h" />
